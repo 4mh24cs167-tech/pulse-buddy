@@ -1,0 +1,324 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap');
+html,body{margin:0;height:100%;overflow:hidden;background:transparent;font-family:'Inter',system-ui,sans-serif}
+#buddy{position:absolute;bottom:20px;width:180px;height:180px;transition: transform 0.1s}
+
+/* Premium Glass Card */
+.bubble{
+    position:absolute;right:250px;bottom:190px;width:320px;
+    background:rgba(25, 25, 35, 0.65);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    border:1px solid rgba(255,255,255,0.15);
+    color:#fff;
+    padding:20px;
+    border-radius:16px;
+    box-shadow:0 10px 40px rgba(0,0,0,0.3);
+    display:none;
+    line-height:1.5;
+    font-size:16px;
+    font-weight:500;
+}
+.typing::after {
+    content: '|';
+    animation: blink 1s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.btns{position:absolute;right:250px;bottom:130px;display:none;gap:12px}
+.btns button{
+    appearance:none;font:inherit;font-weight:700;font-size:15px;
+    border:none;padding:12px 24px;border-radius:12px;cursor:pointer;
+    transition:transform 0.1s, background 0.2s;
+    box-shadow:0 4px 15px rgba(0,0,0,0.2);
+}
+.btns button:active{transform:scale(0.95)}
+.yes{background:linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);color:#111;}
+.btns button.snz{background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);color:#fff}
+
+#ring{position:absolute;right:300px;bottom:70px;display:none;text-align:center}
+canvas.confetti { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+</style>
+
+<canvas class="confetti" id="confetti"></canvas>
+<div id="buddy" class="hit"></div>
+<div class="bubble hit" id="msg"></div>
+<div class="btns" id="btns">
+    <button class="yes hit" id="yes"></button>
+    <button class="snz hit" id="snz">Snooze</button>
+</div>
+
+<div id="ring">
+  <svg width="120" height="120" viewBox="0 0 120 120">
+    <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
+    <circle id="arc" cx="60" cy="60" r="48" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="301.6" stroke-dashoffset="301.6" style="transition:stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)"/>
+    <defs>
+      <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#43e97b"/>
+        <stop offset="100%" stop-color="#38f9d7"/>
+      </linearGradient>
+    </defs>
+    <text id="cnt" x="60" y="68" text-anchor="middle" font-size="24" fill="#fff" font-weight="700"></text>
+  </svg>
+</div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/"
+    }
+}
+</script>
+<script type="module">
+import viewer from './buddy3d.js';
+window.Sprites = {
+    draw: (container, id, state) => viewer.addInstance(container, id, state),
+    update: (inst, state) => viewer.setInstanceState(inst, state)
+};
+
+const $=s=>document.querySelector(s), W=innerWidth, H=innerHeight;
+let cur, state='idle', buddyInst=null, img=null;
+let bX = W+10, bY = H-200; // start position
+
+document.querySelectorAll('.hit').forEach(e=>{e.onmouseenter=()=>api.ignore(false);e.onmouseleave=()=>api.ignore(true)});
+
+let ac;
+function beep(){
+    if(!cur.sound)return;
+    try{
+        ac=ac||new AudioContext();
+        [660,880].forEach((f,i)=>{
+            const o=ac.createOscillator(), g=ac.createGain();
+            o.type='sine'; o.frequency.value=f;
+            o.connect(g); g.connect(ac.destination);
+            const t=ac.currentTime+i*0.15;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.2, t+0.05);
+            g.gain.exponentialRampToValueAtTime(0.001, t+0.3);
+            o.start(t); o.stop(t+0.35);
+        });
+    }catch(e){}
+}
+
+function typeMessage(text, cb) {
+    const el = $('#msg');
+    el.style.display = 'block';
+    el.textContent = '';
+    el.classList.add('typing');
+    let i = 0;
+    const iv = setInterval(() => {
+        el.textContent += text[i++];
+        if(i >= text.length) {
+            clearInterval(iv);
+            el.classList.remove('typing');
+            if(cb) cb();
+        }
+    }, 30);
+}
+
+function paint(s) {
+    state=s;
+    const r=cur.r, buddyDiv=$('#buddy');
+    if(img){
+        buddyDiv.innerHTML='';
+        img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain';
+        buddyDiv.append(img);
+        if(s==='move'||s==='celebrate') img.style.transform = s==='move' ? 'rotate('+(Date.now()%400>200?5:-5)+'deg)' : 'scale(1.1)';
+        else img.style.transform='';
+    } else {
+        if (!buddyInst) buddyInst = Sprites.draw(buddyDiv, r.buddy, s);
+        else Sprites.update(buddyInst, s);
+    }
+}
+
+// Confetti system
+const cCtx = $('#confetti').getContext('2d');
+$('#confetti').width = W; $('#confetti').height = H;
+let particles = [];
+function fireConfetti() {
+    for(let i=0;i<100;i++){
+        particles.push({
+            x: W-240, y: H-120,
+            vx: (Math.random()-0.5)*15, vy: (Math.random()-1)*15 - 5,
+            c: ['#43e97b','#38f9d7','#ff9a9e','#fecfef'][Math.floor(Math.random()*4)],
+            s: Math.random()*8+4, r: Math.random()*Math.PI*2, rv: (Math.random()-0.5)*0.2
+        });
+    }
+}
+function loopConfetti() {
+    requestAnimationFrame(loopConfetti);
+    if(!particles.length) return;
+    cCtx.clearRect(0,0,W,H);
+    particles.forEach((p,i) => {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.3; p.r += p.rv;
+        cCtx.save();
+        cCtx.translate(p.x, p.y); cCtx.rotate(p.r);
+        cCtx.fillStyle = p.c; cCtx.fillRect(-p.s/2, -p.s/2, p.s, p.s);
+        cCtx.restore();
+        if(p.y > H) particles.splice(i,1);
+    });
+}
+loopConfetti();
+
+function animateEntrance(ent, done) {
+    paint('move');
+    const b = $('#buddy');
+    
+    let t = 0;
+    const startX = W + 50, startY = 20; // 20px from bottom default
+    const endX = W - 200, endY = 20;
+    
+    if (ent === 'parachute') {
+        bX = W - 200;
+        bY = H + 50; // comes from top (y is from bottom in CSS, wait, CSS bottom!)
+        const iv = setInterval(()=>{
+            bY -= 4; // falling down (bottom decreases)
+            b.style.bottom = bY + 'px';
+            b.style.left = bX + 'px';
+            b.style.transform = `rotate(${Math.sin(Date.now()/200)*10}deg)`;
+            if(bY <= 20) {
+                clearInterval(iv);
+                bY = 20; b.style.bottom = '20px'; b.style.transform='';
+                paint('idle'); done();
+            }
+        }, 16);
+    } 
+    else if (ent === 'fly') {
+        bX = -100; // start left
+        bY = H - 200; // near top (bottom is large)
+        const iv = setInterval(()=>{
+            bX += 8;
+            bY = (H/2) + Math.sin(bX/100)*50;
+            b.style.bottom = bY + 'px';
+            b.style.left = bX + 'px';
+            if(bX >= endX) {
+                clearInterval(iv);
+                bX = endX; b.style.left = endX + 'px';
+                paint('idle'); done();
+            }
+        }, 16);
+    } 
+    else if (ent === 'drive') {
+        bX = -100; // start left
+        bY = 20; 
+        const iv = setInterval(()=>{
+            bX += 10;
+            b.style.bottom = bY + 'px';
+            b.style.left = bX + 'px';
+            if(bX >= endX) {
+                clearInterval(iv);
+                bX = endX; b.style.left = endX + 'px';
+                paint('idle'); done();
+            }
+        }, 16);
+    }
+    else { // walk
+        bX = W + 50; 
+        bY = 20;
+        const iv = setInterval(()=>{
+            bX -= 6;
+            b.style.bottom = bY + 'px';
+            b.style.left = bX + 'px';
+            if(bX <= endX) {
+                clearInterval(iv);
+                bX = endX; b.style.left = endX + 'px';
+                paint('idle'); done();
+            }
+        }, 16);
+    }
+}
+
+api.onFire(d => {
+    cur = d;
+    const r = d.r;
+    $('#yes').textContent = r.yes || 'Yes, done';
+    
+    // Position bubble relative to buddy
+    const ent = r.ent || 'walk';
+    
+    const go = () => {
+        animateEntrance(ent, () => {
+            paint('talk');
+            // Show bubble trailing or next to buddy
+            const bbl = $('#msg');
+            if (ent === 'fly') {
+                bbl.style.right = (W - bX + 200) + 'px';
+                bbl.style.bottom = (bY - 50) + 'px';
+                $('#btns').style.right = (W - bX + 200) + 'px';
+                $('#btns').style.bottom = (bY - 110) + 'px';
+            } else {
+                bbl.style.right = '250px';
+                bbl.style.bottom = '190px';
+                $('#btns').style.right = '250px';
+                $('#btns').style.bottom = '130px';
+            }
+            
+            typeMessage(r.message || r.title, () => {
+                $('#btns').style.display='flex';
+                beep();
+            });
+        });
+    };
+    if (typeof r.buddy === 'string') { img=new Image(); img.onload=go; img.src=r.buddy; }
+    else go();
+});
+
+function leave(){
+    $('#msg').style.display = $('#btns').style.display = $('#ring').style.display = 'none';
+    const ent = cur.r.ent || 'walk';
+    paint('move');
+    const b = $('#buddy');
+    
+    if (ent === 'fly') {
+        const iv = setInterval(()=>{
+            bX += 8;
+            b.style.left = bX + 'px';
+            if(bX >= W+100) { clearInterval(iv); api.closeOverlay(); }
+        }, 16);
+    } else if (ent === 'drive') {
+        const iv = setInterval(()=>{
+            bX += 10;
+            b.style.left = bX + 'px';
+            if(bX >= W+100) { clearInterval(iv); api.closeOverlay(); }
+        }, 16);
+    } else {
+        const iv = setInterval(()=>{
+            bX += 6;
+            b.style.left = bX + 'px';
+            if(bX >= W+100) { clearInterval(iv); api.closeOverlay(); }
+        }, 16);
+    }
+}
+
+$('#yes').onclick = async () => {
+    const a = await api.answer(cur.r.id, 'done');
+    $('#btns').style.display = 'none';
+    
+    paint('celebrate');
+    fireConfetti();
+    
+    $('#msg').textContent = '';
+    typeMessage('Good job!', () => {
+        $('#ring').style.display = 'block';
+        
+        // Dynamic positioning for ring
+        const ent = cur.r.ent || 'walk';
+        if(ent === 'fly') {
+            $('#ring').style.right = (W - bX + 250) + 'px';
+            $('#ring').style.bottom = (bY - 50) + 'px';
+        }
+        
+        $('#cnt').textContent = a.count + '/' + a.goal;
+        requestAnimationFrame(() => $('#arc').style.strokeDashoffset = 301.6 * (1 - Math.min(1, a.count / a.goal)));
+        setTimeout(leave, 3200);
+    });
+};
+
+$('#snz').onclick = async () => {
+    await api.answer(cur.r.id, 'snooze');
+    leave();
+};
+</script>
