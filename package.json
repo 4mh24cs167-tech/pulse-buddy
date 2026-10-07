@@ -1,6 +1,6 @@
 {
   "name": "pulse-buddy",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Desktop buddy that walks onto your screen to remind you of anything",
   "main": "main.js",
   "author": "you",
@@ -10,7 +10,8 @@
   },
   "devDependencies": {
     "electron": "^31.0.0",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "esbuild": "^0.28.2"
   },
   "build": {
     "appId": "com.pulse.buddy",
@@ -31,7 +32,7 @@
     "dmg": {
       "artifactName": "Pulse-Buddy-Mac.dmg"
     },
-    "asar": false
+    "asar": true
   },
   "dependencies": {
     "three": "^0.186.1"

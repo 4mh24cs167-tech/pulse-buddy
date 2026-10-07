@@ -474,19 +474,10 @@ dialog::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); }
     </div>
   </div>
 </dialog>
-
-<script type="importmap">
-{
-    "imports": {
-        "three": "./node_modules/three/build/three.module.js",
-        "three/addons/": "./node_modules/three/examples/jsm/"
-    }
-}
-</script>
 <script src="core.js"></script>
 <script type="module">
 import * as THREE from 'three';
-import viewer, { Configs } from './buddy3d.js';
+import viewer, { Configs } from './bundle.js';
 window.Sprites = {
     draw: (container, id, state) => viewer.addInstance(container, id, state),
     update: (inst, state) => viewer.setInstanceState(inst, state),
