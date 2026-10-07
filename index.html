@@ -628,10 +628,19 @@ function draw(){
   
   const acts=document.createElement('div'); acts.className='rem-actions';
   const mk=(t,f)=>{const b=document.createElement('button');b.className='btn-ghost';b.textContent=t;b.onclick=f;acts.append(b);return b};
-  mk('Test',()=>api.test(r)); mk('Edit',()=>open(r)); mk('Del',()=>{S.reminders=S.reminders.filter(x=>x!==r);save()});
+  mk('Test',()=>api.test(r)); mk('Edit',()=>open(r)); mk('Del',async()=>{
+      await api.deleteReminder(r.id);
+      S.reminders=S.reminders.filter(x=>x!==r);
+      draw();
+  });
   
   const sw=document.createElement('div'); sw.className='sw'+(r.active?' on':'');
-  sw.onclick=()=>{r.active=!r.active;if(r.active)r.next=Core.next(r,Date.now());save()};
+  sw.onclick=async()=>{
+      r.active=!r.active;
+      if(r.active)r.next=Core.next(r,Date.now());
+      await api.updateReminder(r.id, { active: r.active, next: r.next });
+      draw();
+  };
   acts.append(sw);
   
   d.append(acts);
@@ -650,13 +659,13 @@ function bindSw(id, key) {
     $('#'+id).onclick = () => {
         S.settings[key] = !S.settings[key];
         $('#'+id).className = 'sw' + (S.settings[key] ? ' on' : '');
-        save();
+        api.setSetting(key, S.settings[key]);
     };
 }
 
 $('#oSnz').onchange = (e) => {
     S.settings.snooze = +e.target.value || 10;
-    save();
+    api.setSetting('snooze', S.settings.snooze);
 };
 
 function pick(b){
@@ -837,7 +846,18 @@ function build(){const t=$('#fT').value.trim();if(!t){$('#fT').focus();return nu
  if(m==='interval'){r.every=Math.max(1,+$('#fEv').value||60);r.hs=$('#fHs').value;r.he=$('#fHe').value}
  if(m==='daily'){r.times=$('#fTi').value.split(',').map(s=>s.trim()).filter(s=>/^\d{1,2}:\d{2}$/.test(s));if(!r.times.length){alert('Use times like 09:00, 21:00');return null}}
  if(m==='once'){const x=new Date($('#fAt').value).getTime();if(!x||x<Date.now()){alert('Pick a future date and time');return null}r.next=x}else r.next=Core.next(r,Date.now());return r}
-$('#sv').onclick=()=>{const r=build();if(!r)return;if(!ed)S.reminders.push(r);$('#dlg').close();save()};
+$('#sv').onclick=async()=>{
+    const r=build();if(!r)return;
+    if(!ed) {
+        r.id = await api.createReminder(r);
+        S.reminders.push(r);
+    } else {
+        await api.updateReminder(r.id, r);
+        Object.assign(ed, r);
+    }
+    $('#dlg').close();
+    draw();
+};
 $('#ts').onclick=()=>{const r=build();if(r)api.test({...r,id:'preview'})};
 $('#pz').onclick=()=>{api.pause(60);alert('Paused for 1 hour. Use the tray menu to resume.')};
 
