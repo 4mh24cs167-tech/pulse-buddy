@@ -88,11 +88,26 @@ class Scheduler {
     }
 
     calculateNext(r, fromTime) {
+        // Enforce daily limit (goal)
+        const goal = r.goal ? parseInt(r.goal, 10) : 1;
+        const count = TimeUtils.todayCount(r, fromTime);
+        const reachedLimit = count >= goal;
+
         if (r.mode === 'interval') {
             const every = parseInt(r.every, 10);
             if (isNaN(every) || every <= 0) return null;
             
             let t = fromTime + (every * 60000);
+            
+            // If limit reached today, push to tomorrow at start hour
+            if (reachedLimit) {
+                const d = new Date(fromTime);
+                d.setDate(d.getDate() + 1);
+                const hsMins = TimeUtils.parseTime(r.hs) || (9 * 60);
+                d.setHours(Math.floor(hsMins / 60), hsMins % 60, 0, 0);
+                t = d.getTime();
+            }
+
             return TimeUtils.constrainToActiveHours(t, r.hs, r.he);
         }
         
@@ -101,9 +116,20 @@ class Scheduler {
             let best = null;
             
             for (const t of r.times) {
-                const nextT = TimeUtils.nextDaily(t, fromTime);
-                if (nextT && (best === null || nextT < best)) {
-                    best = nextT;
+                let nextT = TimeUtils.nextDaily(t, fromTime);
+                if (nextT) {
+                    if (reachedLimit) {
+                        // Push to tomorrow if it's still today
+                        const nextD = new Date(nextT);
+                        const todayD = new Date(fromTime);
+                        if (nextD.getDate() === todayD.getDate()) {
+                            nextD.setDate(nextD.getDate() + 1);
+                            nextT = nextD.getTime();
+                        }
+                    }
+                    if (best === null || nextT < best) {
+                        best = nextT;
+                    }
                 }
             }
             return best;

@@ -345,23 +345,27 @@ class BuddyViewer {
         
         this.scene = new THREE.Scene();
         
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        const hemiLight = new THREE.HemisphereLight(0x00ffaa, 0x0044ff, 0.4);
         this.scene.add(hemiLight);
         
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        const keyLight = new THREE.DirectionalLight(0x00ffaa, 1.5);
         keyLight.position.set(5, 8, 5);
         keyLight.castShadow = true;
         keyLight.shadow.mapSize.width = 1024;
         keyLight.shadow.mapSize.height = 1024;
         this.scene.add(keyLight);
         
-        const fillLight = new THREE.DirectionalLight(0xaaccff, 0.5);
+        const fillLight = new THREE.DirectionalLight(0x00a2ff, 1.2);
         fillLight.position.set(-5, 3, 5);
         this.scene.add(fillLight);
         
-        const rimLight = new THREE.DirectionalLight(0xffccaa, 0.8);
+        const rimLight = new THREE.DirectionalLight(0xff00aa, 1.8);
         rimLight.position.set(0, 5, -8);
         this.scene.add(rimLight);
+        
+        const floorLight = new THREE.PointLight(0x00ffaa, 2, 10);
+        floorLight.position.set(0, 0.1, 0);
+        this.scene.add(floorLight);
         
         const planeGeo = new THREE.PlaneGeometry(10, 10);
         const shadowMat = new THREE.ShadowMaterial({ opacity: 0.3 });

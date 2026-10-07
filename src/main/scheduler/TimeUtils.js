@@ -61,6 +61,14 @@ class TimeUtils {
 
         return d.getTime();
     }
+
+    /**
+     * Returns how many times a reminder was completed today
+     */
+    static todayCount(r, now = Date.now()) {
+        const d = new Date(now).toDateString();
+        return (r.log || []).filter(t => new Date(t).toDateString() === d).length;
+    }
 }
 
 module.exports = TimeUtils;

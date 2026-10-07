@@ -30,11 +30,12 @@
       "icon": "build/icon.png"
     },
     "dmg": {
-      "artifactName": "Pulse-Buddy-Mac.dmg"
+      "artifactName": "Pulse-Buddy-Mac.${ext}"
     },
     "asar": true
   },
   "dependencies": {
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "three-stdlib": "^2.36.1"
   }
 }

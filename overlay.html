@@ -64,8 +64,9 @@ canvas.confetti { position: absolute; top:0; left:0; width:100%; height:100%; po
   </svg>
 </div>
 
-<script type="module">
-import viewer from './bundle.js';
+<script src="bundle.js"></script>
+<script>
+const viewer = window.Buddy3D.default;
 window.Sprites = {
     draw: (container, id, state) => viewer.addInstance(container, id, state),
     update: (inst, state) => viewer.setInstanceState(inst, state)
