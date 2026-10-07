@@ -403,12 +403,29 @@ class BuddyViewer {
         return inst;
     }
     
+    disposeModel(model) {
+        if (!model) return;
+        model.traverse((child) => {
+            if (child.isMesh) {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            }
+        });
+        this.scene.remove(model);
+    }
+    
     setInstanceState(inst, state) {
         inst.state = state;
     }
     
     updateModel(inst, config) {
-        this.scene.remove(inst.model);
+        if (inst.model) this.disposeModel(inst.model);
         let model;
         if (config.species === 'human') model = HumanGenerator.generate(config);
         else if (config.species === 'animal') model = AnimalGenerator.generate(config);
@@ -419,7 +436,7 @@ class BuddyViewer {
     }
     
     removeInstance(inst) {
-        this.scene.remove(inst.model);
+        if (inst.model) this.disposeModel(inst.model);
         if(inst.controls) inst.controls.dispose();
         this.instances = this.instances.filter(i => i !== inst);
     }

@@ -466,8 +466,8 @@ dialog::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); }
     <div style="margin-top:40px; display:flex; flex-direction:column; gap:10px">
       <button class="btn-ghost" id="sRnd">Surprise me!</button>
       <label class="btn-ghost" style="text-align:center; display:block">
-        Upload Custom Image or 3D Model (.glb)
-        <input type="file" id="up" accept="image/*,.glb,.vrm" hidden>
+        Upload Custom Image
+        <input type="file" id="up" accept="image/*" hidden>
       </label>
       <button class="btn-pri" id="sSave">Use This Buddy</button>
       <button class="btn-ghost" style="border:none" onclick="studioDlg.close()">Cancel</button>
@@ -566,7 +566,10 @@ function thumb(r,k){
   i.src=r.buddy;div.append(i);
  }else{
   const res=window.Sprites.draw(div,r.buddy,'idle');
-  if(res) return res.container; 
+  if(res) {
+      window.activeThumbs.push(res);
+      return res.container; 
+  }
  }
  return div;
 }
@@ -611,7 +614,12 @@ function updateToday() {
     }
 }
 
+window.activeThumbs = window.activeThumbs || [];
 function draw(){
+ if(window.activeThumbs) {
+     window.activeThumbs.forEach(inst => window.Sprites.remove(inst));
+     window.activeThumbs = [];
+ }
  const L=$('#list');L.innerHTML='';
  if(!S.reminders.length) L.innerHTML='<div class="panel" style="text-align:center; color:var(--text-mut)">No reminders yet. Create one to get started!</div>';
  
@@ -868,6 +876,20 @@ $('#pz').onclick=()=>{api.pause(60);alert('Paused for 1 hour. Use the tray menu 
     
     bindSw('oAuto', 'autostart');
     bindSw('oSnd', 'sound');
+    
+    $('#dlg').addEventListener('close', () => {
+        if(nextBuddyInst) {
+            window.Sprites.remove(nextBuddyInst);
+            nextBuddyInst = null;
+        }
+    });
+    
+    $('#studioDlg').addEventListener('close', () => {
+        if(studioInst) {
+            window.Sprites.remove(studioInst);
+            studioInst = null;
+        }
+    });
     
     draw();
     api.onRefresh(async()=>{S=await api.get();draw()});
