@@ -476,8 +476,7 @@ dialog::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); }
 </dialog>
 <script src="core.js"></script>
 <script type="module">
-import * as THREE from 'three';
-import viewer, { Configs } from './bundle.js';
+import viewer, { Configs, THREE } from './bundle.js';
 window.Sprites = {
     draw: (container, id, state) => viewer.addInstance(container, id, state),
     update: (inst, state) => viewer.setInstanceState(inst, state),

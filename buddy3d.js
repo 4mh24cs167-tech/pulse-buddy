@@ -591,3 +591,5 @@ class BuddyViewer {
 export const Configs = { skinTones, hairColors, shirtColors, pantsColors, animalColors, vehicleColors };
 const viewer = new BuddyViewer();
 export default viewer;
+
+export * as THREE from 'three';
