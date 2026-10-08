@@ -261,6 +261,30 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
   .studio-view { height: 40vh; }
   .studio-panel { height: 50vh; }
 }
+
+/* Light Mode overrides */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-start: #f5f7fa;
+    --bg-end: #e4e8f0;
+    --text-pri: #1a1c20;
+    --text-sec: #4a5568;
+    --accent: #2b6cb0;
+    --accent-hover: #2c5282;
+  }
+  .aurora { opacity: 0.1; background: linear-gradient(45deg, #a0aec0 0%, #cbd5e0 50%, #e2e8f0 100%); }
+  .panel { background: rgba(255,255,255,0.8); border: 1px solid rgba(0,0,0,0.1); }
+  .btn-pri { color: white; background: var(--accent); box-shadow: 0 4px 15px rgba(43,108,176,0.2); border: none; }
+  .btn-pri:hover { background: var(--accent-hover); box-shadow: 0 6px 20px rgba(43,108,176,0.3); }
+  .btn-sec { color: var(--text-sec); border-color: rgba(0,0,0,0.2); }
+  .btn-sec:hover { color: var(--text-pri); border-color: var(--text-pri); background: rgba(0,0,0,0.05); }
+  input, select { background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.2); color: var(--text-pri); }
+  .item-card { background: rgba(255,255,255,0.6); border: 1px solid rgba(0,0,0,0.1); }
+  .item-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.9); }
+  #studioDlg[open] { border-color: var(--accent); background: #fff; }
+  .studio-view { background: radial-gradient(circle at center, #fff, #f0f0f0); }
+  .studio-panel { background: rgba(255,255,255,0.95); border-left: 1px solid rgba(0,0,0,0.1); }
+}
 </style>
 </head>
 <body>
@@ -518,9 +542,12 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
     </div>
   </div>
 </dialog>
+<script src="mobile-adapter.js"></script>
 <script src="core.js"></script>
 <script src="bundle.js"></script>
 <script>
+const { parseTime, nextDaily, constrainToActiveHours, todayCount } = (typeof module !== 'undefined' ? module.exports : window.Core) || window.Core;
+
 const viewer = window.Buddy3D.default;
 const Configs = window.Buddy3D.Configs;
 const THREE = window.Buddy3D.THREE;
