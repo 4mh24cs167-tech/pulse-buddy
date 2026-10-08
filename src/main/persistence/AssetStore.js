@@ -26,6 +26,8 @@ class AssetStore {
             if (!matches || matches.length !== 3) return dataUri;
             
             const mime = matches[1];
+            if (!mime.startsWith(type + '/')) return dataUri;
+            
             const buffer = Buffer.from(matches[2], 'base64');
             
             // Limit to 50MB

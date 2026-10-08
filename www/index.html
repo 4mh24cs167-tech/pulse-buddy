@@ -525,7 +525,9 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
         <option value="human">Human</option>
         <option value="animal">Animal</option>
         <option value="vehicle">Vehicle</option>
-      </select>
+            <option value="robot">Robot</option>
+            <option value="fantasy">Fantasy</option>
+          </select>
     </div>
     
     <div id="sHumanOpts">
@@ -864,7 +866,14 @@ function pick(b){
 }
 
 // Build dialog picker
-for(let i=0;i<60;i++){const b=document.createElement('button');b.dataset.b=i;b.append(thumb({buddy:i},2.5));b.onclick=()=>pick(i);$('#bg').append(b)}
+window.BuddyCatalog.forEach(c => {
+        const id = c.id;
+        const btn = document.createElement('button');
+        btn.dataset.b = id;
+        btn.append(thumb({buddy:id}, 2.5));
+        btn.onclick = () => pick(id);
+        $('#bg').append(btn);
+    });
 
 $('#tpl').innerHTML=TPL.map((t,i)=>`<button class="chip" data-i="${i}">${t[0]}</button>`).join('');
 $('#tpl').onclick=e=>{const t=TPL[e.target.dataset.i];if(!t)return;$('#fT').value=t[0];$('#fM').value=t[1];$('#fY').value=t[2];$('#fMode').value=t[3];(t[3]==='interval'?$('#fEv'):$('#fTi')).value=t[4];$('#fG').value=t[5];$('#fEnt').value='walk';pick(t[7]);mode()};
@@ -883,7 +892,7 @@ function getBuddyTypeStr(id) {
 
 function renderGallery(filter = 'all', search = '') {
     const list = [];
-    for(let i=0;i<60;i++) list.push(i);
+    window.BuddyCatalog.forEach(c => list.push(c.id));
     customBuddies.forEach(c => list.push(c));
     if (window.BuddyCatalog) window.BuddyCatalog.forEach(c => list.push(c.id));
     if (S && S.buddies) S.buddies.forEach(c => list.push(c));
@@ -986,9 +995,7 @@ if ($('#studioEmotions')) {
                 if (window.Sprites && window.Sprites.update) {
                     window.Sprites.update(studioInst, emotion);
                 }
-                if (window.EmotionEngine && window.EmotionEngine.react) {
-                    window.EmotionEngine.react({ domElement: $('#studioView').firstChild }, emotion.toUpperCase());
-                }
+                // Legacy EmotionEngine removed in favor of true 3D BuddyEngine behavior
             }
         };
     });
@@ -1020,9 +1027,13 @@ $('#sRnd').onclick = () => {
         $('#sSkin').value = currentConfig.skin; $('#sHairType').value = currentConfig.hairType; $('#sHair').value = currentConfig.hair; $('#sShirt').value = currentConfig.shirt; $('#sPants').value = currentConfig.pants;
     } else if(currentConfig.species === 'animal') {
         currentConfig.color = r(Configs.animalColors.length); $('#sAnimalColor').value = currentConfig.color;
-    } else {
+    } else if(currentConfig.species === 'vehicle') {
         currentConfig.type = r(3); currentConfig.color = r(Configs.vehicleColors.length);
         $('#sVehicleType').value = currentConfig.type; $('#sVehicleColor').value = currentConfig.color;
+    } else if(currentConfig.species === 'robot') {
+        currentConfig.type = r(3); currentConfig.color = r(4);
+    } else {
+        currentConfig.type = r(3); currentConfig.color = r(4);
     }
     updateStudioModel();
 };
@@ -1044,9 +1055,15 @@ $('#sSave').onclick = () => addToPicker(JSON.parse(JSON.stringify(currentConfig)
 $('#up').onchange=e=>{
     const f=e.target.files[0];if(!f)return;
     const fr=new FileReader();
-    fr.onload=()=>{
-        const data = fr.result;
-        addToPicker(data);
+    fr.onload=async ()=>{
+        const b64 = fr.result;
+        const newId = 'c_' + uid();
+        const assetId = await api.saveAsset(newId, b64);
+        const buddyState = { id: newId, name: 'Custom Photo', asset: assetId, isPhoto: true };
+        S.buddies = S.buddies || [];
+        S.buddies.push(buddyState);
+        await api.save(S);
+        addToPicker(buddyState);
     };
     fr.readAsDataURL(f);
 };

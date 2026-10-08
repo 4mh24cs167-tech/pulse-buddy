@@ -82,30 +82,35 @@ describe('Comprehensive Verification Suite', () => {
     });
 
     describe('AssetStore and Custom Buddy Verification', () => {
-        const tempPath = path.join(__dirname, '..', '..', 'assets', 'test_custom.jpg');
-        
+        let tempDir;
+        let store;
+        const os = require('os');
+        const AssetStore = require('../../src/main/persistence/AssetStore');
+
+        before(() => {
+            tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pulse-buddy-test-'));
+            store = new AssetStore(tempDir);
+        });
+
         after(() => {
-            if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+            fs.rmSync(tempDir, { recursive: true, force: true });
         });
 
         it('should validate Base64 before storing physically', () => {
             const invalidB64 = "data:text/html;base64,...";
             const validB64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
             
-            // Mock AssetStore behavior mapping to physical
-            const storeAssetMock = (b64) => {
-                if (!b64.startsWith('data:image/')) throw new Error("Invalid Format");
-                fs.writeFileSync(tempPath, Buffer.from(b64.split(',')[1], 'base64'));
-                return 'test_custom.jpg';
-            };
-
-            let threw = false;
-            try { storeAssetMock(invalidB64); } catch(e) { threw = true; }
-            assert.ok(threw, "Should have thrown for invalid format");
+            // Reject invalid base64 (AssetStore returns the original string if invalid)
+            const resultInvalid = store.storeAsset(invalidB64, 'image');
+            assert.strictEqual(resultInvalid, invalidB64, "Should reject invalid format");
             
-            const id = storeAssetMock(validB64);
-            assert.strictEqual(id, 'test_custom.jpg');
-            assert.ok(fs.existsSync(tempPath), "Physical asset must be written to disk");
+            // Accept valid base64
+            const resultValid = store.storeAsset(validB64, 'image');
+            assert.ok(resultValid.startsWith('file:///'), "Returned asset pointer is valid file URI");
+            
+            // Verify physical existence
+            const physicalPath = resultValid.replace('file:///', '');
+            assert.ok(fs.existsSync(physicalPath), "Physical asset must be written to disk");
         });
     });
 

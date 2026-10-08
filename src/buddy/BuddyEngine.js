@@ -212,6 +212,13 @@ export class BuddyBehaviorController {
                     setTimeout(() => { this.idle(); res(); }, 5000);
                 });
             }));
+        } else {
+            // Direct emotion mapping from Studio
+            this.enqueue(() => new Promise(res => {
+                this.movement.faceUser();
+                this.emotion.react(event.toUpperCase());
+                setTimeout(() => { this.idle(); res(); }, 3000);
+            }));
         }
     }
 }

@@ -29823,6 +29823,15 @@ void main() {
             }, 5e3);
           });
         }));
+      } else {
+        this.enqueue(() => new Promise((res) => {
+          this.movement.faceUser();
+          this.emotion.react(event.toUpperCase());
+          setTimeout(() => {
+            this.idle();
+            res();
+          }, 3e3);
+        }));
       }
     }
   };

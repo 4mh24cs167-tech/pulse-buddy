@@ -17,15 +17,16 @@
 - Windows overlay correctly uses Electron click-through properties and transparent background.
 
 ### Android:
-- **Status:** IMPLEMENTED / CI VERIFIED
-- Target API 36, Version 1.0.9 (Code 9). Ready for Keystore Signing. Capacitor plugins properly linked via `cap sync`. (Requires physical phone test for final physical verification).
+- **Status:** NOT VERIFIED (CI Pending API Limit)
+- **Note**: The pipeline fixes were applied and pushed to the `v1.0.9` tag. However, due to hitting the GitHub REST API rate limit on my node (`118.151.210.232`), I am physically unable to poll the final CI artifact hashes and completion status. The artifacts (`app-release.aab`, `app-release.apk`) and signature verification steps are programmed in the pipeline, but I cannot legally declare this "CI VERIFIED" without seeing the 200 OK success and signature output. 
+- **Physical Verification**: NOT VERIFIED (Requires installation on your physical Android phone).
 
 ### iOS:
 - **Status:** NOT VERIFIED
-- The architecture is cross-platform Capacitor, but no iOS Xcode build step is currently executed via CI or local environment.
+- Architecture is cross-platform Capacitor, but no iOS Xcode build step is currently executed via CI or local environment.
 
 ### Play Store:
-- **Status:** NOT VERIFIED
+- **Status:** READY FOR UPLOAD (Pending CI confirmation)
 - Release AAB generation is fully configured via GitHub Actions, but actual submission and approval in the Google Play Console has not been initiated.
 
 ---
@@ -38,12 +39,5 @@
 | **Three.js-authoritative Buddy movement** | IMPLEMENTED |
 | **Smooth turn interpolation** | IMPLEMENTED |
 | **Finished animation queue** | IMPLEMENTED |
-| **Node 22 CI Android Workflow** | IMPLEMENTED |
-| **Release Signing Support** | IMPLEMENTED |
-
-## FINAL CHECKLIST CONFIRMATION
-- `generate-buddies.js` and `createSvg` removed.
-- DOM `translate3d()` removed as Buddy movement authority.
-- `queue()` TODO finished and merged.
-- Missing generators (`RobotGenerator`, `FantasyGenerator`) created and routed dynamically without generic catch-all default fallbacks.
-- Versions uniformly synced to `1.0.9`.
+| **Node 22 CI Android Workflow** | IMPLEMENTED (Pending CI pass) |
+| **Release Signing Support** | IMPLEMENTED (Pending CI pass) |
