@@ -8,7 +8,7 @@ let win,tray,overlay,stateStore,assetStore,scheduler,queue=[],pausedUntil=0,quit
 const autostart=()=>app.setLoginItemSettings({openAtLogin:!!stateStore.getState().settings.autostart,args:['--hidden']});
 function openWin(){if(win){win.show();win.focus();return}
  win=new BrowserWindow({width:1000,height:740,backgroundColor:'#0d1b1e',title:'Pulse Buddy',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.js')}});
- win.loadFile('index.html');win.on('close',e=>{if(!quitting){e.preventDefault();win.hide()}})}
+ win.loadFile('www/index.html');win.on('close',e=>{if(!quitting){e.preventDefault();win.hide()}})}
 let overlays = [];
 function showOverlay(r){queue.push(r);if(overlays.length===0)nextOverlay()}
 function nextOverlay(){const r=queue.shift();if(!r)return;
@@ -16,7 +16,7 @@ function nextOverlay(){const r=queue.shift();if(!r)return;
  displays.forEach(d => {
    const w = d.workArea.width, h = d.workArea.height;
    let ov = new BrowserWindow({x:d.workArea.x,y:d.workArea.y,width:w,height:h,transparent:true,frame:false,alwaysOnTop:true,skipTaskbar:true,resizable:false,hasShadow:false,show:false,webPreferences:{preload:path.join(__dirname,'preload.js')}});
-   ov.setAlwaysOnTop(true,'screen-saver');ov.setIgnoreMouseEvents(true,{forward:true});ov.loadFile('overlay.html');
+   ov.setAlwaysOnTop(true,'screen-saver');ov.setIgnoreMouseEvents(true,{forward:true});ov.loadFile('www/overlay.html');
    ov.webContents.on('did-finish-load',()=>{ov.showInactive();ov.webContents.send('fire',{r,count:Core.today(r),sound:stateStore.getState().settings.sound})});
    ov.on('closed',()=>{
        overlays = overlays.filter(o => o !== ov);

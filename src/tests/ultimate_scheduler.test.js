@@ -1,5 +1,5 @@
 const assert = require('assert');
-const Core = require('../../core'); // Use core.js scheduler if applicable
+const Core = require('../../www/core.js'); // Use core.js scheduler if applicable
 
 describe('Ultimate Scheduler Verification', () => {
     

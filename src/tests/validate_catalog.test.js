@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { BuddyCatalog } = require('../../buddy-catalog.js');
+const { BuddyCatalog } = require('../../www/buddy-catalog.js');
 
 describe('72-Buddy Catalog Validation', () => {
     it('should have exactly 72 buddies', () => {

@@ -8,7 +8,7 @@ describe('Comprehensive Verification Suite', () => {
     describe('72-Buddy Catalog Integrity', () => {
         let catalog;
         before(() => {
-            const mod = require('../../buddy-catalog.js');
+            const mod = require('../../www/buddy-catalog.js');
             catalog = mod.BuddyCatalog;
         });
 
@@ -43,7 +43,7 @@ describe('Comprehensive Verification Suite', () => {
     describe('EmotionEngine Architecture', () => {
         let EmotionEngine;
         before(() => {
-            const mod = require('../../buddy-catalog.js');
+            const mod = require('../../www/buddy-catalog.js');
             EmotionEngine = mod.EmotionEngine;
             // Mock global document and requestAnimationFrame for tests
             global.document = {
