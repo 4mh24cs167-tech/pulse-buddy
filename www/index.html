@@ -296,7 +296,13 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
     <button data-tab="reminders">Reminders</button>
     <button data-tab="buddies">Buddies Gallery</button>
     <button data-tab="stats">Stats & Progress</button>
-    <button data-tab="settings">Settings</button>
+          <button data-tab="settings">Settings</button>
+      <div style="margin-top: 30px; padding: 0 10px;">
+        <a href="https://github.com/4mh24cs167-tech/pulse-buddy/releases/latest/download/app-release.apk" target="_blank" style="display: flex; justify-content: center; align-items: center; text-decoration: none; color: white; background: var(--accent); padding: 12px; border-radius: 12px; font-weight: 600; font-size: 14px; transition: 0.2s; box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);">
+          <svg style="width:18px;height:18px;margin-right:8px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Android APK
+        </a>
+      </div>
   </nav>
   
   <main class="main">
@@ -311,6 +317,11 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
             <div>
               <div style="font-size:18px; color:var(--text-mut); margin-bottom:10px" id="tNextLbl">No reminders scheduled</div>
               <div class="countdown-text" id="tNextTime">--:--:--</div>
+                
+                <a href="https://github.com/4mh24cs167-tech/pulse-buddy/releases/latest/download/app-release.apk" target="_blank" style="display:inline-flex; align-items:center; margin-top:20px; padding:10px 20px; background:var(--accent); color:white; border-radius:8px; text-decoration:none; font-weight:bold;">
+                  <svg style="width:20px;height:20px;margin-right:8px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download Android App
+                </a>
             </div>
             <div class="hero-buddy" id="tNextBuddy"></div>
           </div>
