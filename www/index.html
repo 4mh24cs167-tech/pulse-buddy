@@ -363,7 +363,17 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
         <button class="chip" data-tab="fav">Favorites</button>
       </div>
       <div class="panel">
-        <div id="galContent" class="grid-picker" style="max-height:600px"></div>
+        <div id="galContent" class="grid-picker" style="max-height:400px; margin-bottom:20px;"></div>
+      </div>
+      
+      <div class="panel" style="margin-top:20px;">
+        <h2>Create Custom Buddy</h2>
+        <p style="color:var(--text-sec); font-size:14px; margin-bottom:15px;">Upload a photo of your dog, car, or character to create a custom buddy. It stays private on your device.</p>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="file" id="customBuddyUpload" accept="image/png, image/jpeg, image/webp" style="flex:1">
+          <input type="text" id="customBuddyName" placeholder="Buddy Name" style="flex:1">
+          <button class="btn-pri" id="btnSaveCustomBuddy">Save Custom Buddy</button>
+        </div>
       </div>
     </div>
     
@@ -543,10 +553,14 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
   </div>
 </dialog>
 <script src="mobile-adapter.js"></script>
+<script src="buddy-catalog.js"></script>
 <script src="core.js"></script>
 <script src="bundle.js"></script>
 <script>
 const { parseTime, nextDaily, constrainToActiveHours, todayCount } = (typeof module !== 'undefined' ? module.exports : window.Core) || window.Core;
+const BuddyCatalog = window.BuddyCatalog || [];
+const EmotionEngine = window.EmotionEngine || { react: () => {} };
+
 
 const viewer = window.Buddy3D.default;
 const Configs = window.Buddy3D.Configs;
@@ -633,6 +647,27 @@ $$('.sidebar button[data-tab]').forEach(b => {
         if(e.target.dataset.tab === 'buddies') renderGallery();
     }
 });
+
+// Custom Buddy Creator
+if ($('#btnSaveCustomBuddy')) {
+    $('#btnSaveCustomBuddy').onclick = () => {
+        const fileInput = $('#customBuddyUpload');
+        const nameInput = $('#customBuddyName');
+        if(!fileInput.files.length) return alert("Please select an image");
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const b64 = e.target.result;
+            const b = { id: 'c_' + Date.now(), name: nameInput.value || 'Custom Buddy', category: 'custom', asset: b64 };
+            S.buddies = S.buddies || [];
+            S.buddies.push(b);
+            await save();
+            alert("Custom Buddy saved successfully!");
+            renderGallery();
+        };
+        reader.readAsDataURL(file);
+    };
+}
 
 // Greeting
 const hr = new Date().getHours();
@@ -786,17 +821,24 @@ function renderGallery(filter = 'all', search = '') {
     const list = [];
     for(let i=0;i<60;i++) list.push(i);
     customBuddies.forEach(c => list.push(c));
+    if (window.BuddyCatalog) window.BuddyCatalog.forEach(c => list.push(c.id));
+    if (S && S.buddies) S.buddies.forEach(c => list.push(c));
     
     $('#galContent').innerHTML = '';
     const q = search.toLowerCase();
     
     list.forEach(id => {
-        const type = getBuddyTypeStr(id);
+        let type = getBuddyTypeStr(id);
+        let name = '';
+        if (typeof id === 'object' && id.category) type = id.category;
+        if (typeof id === 'object' && id.name) name = id.name.toLowerCase();
+        
         const strId = typeof id === 'object' ? JSON.stringify(id) : String(id);
         const isFav = favs.has(strId);
         
         if(filter !== 'all' && filter !== 'fav' && filter !== type) return;
         if(filter === 'fav' && !isFav) return;
+        if(q && !name.includes(q)) return;
         
         const b = document.createElement('button');
         b.dataset.b = strId;
