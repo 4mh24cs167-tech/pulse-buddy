@@ -3,6 +3,10 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.pulse.buddy"
     compileSdk = rootProject.ext.compileSdkVersion
+        compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
     defaultConfig {
         applicationId "com.pulse.buddy"
         minSdkVersion rootProject.ext.minSdkVersion
