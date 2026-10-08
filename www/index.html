@@ -1179,7 +1179,7 @@ $('#pz').onclick=()=>{api.pause(60);alert('Paused for 1 hour. Use the tray menu 
 
 function bootstrap() {
     try {
-        $('dialog button:not([type="submit"])').forEach(b => {
+        $$('dialog button:not([type="submit"])').forEach(b => {
             if(!b.hasAttribute('type')) b.setAttribute('type', 'button');
         });
         
