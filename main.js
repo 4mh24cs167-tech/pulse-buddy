@@ -33,6 +33,15 @@ ipcMain.handle('save',(e,d)=>{
     stateStore.persist();
     autostart();
 });
+ipcMain.handle('saveAsset', (e, id, b64) => {
+    return assetStore.storeAsset(b64, 'image', id);
+});
+ipcMain.handle('getAsset', (e, id) => {
+    return assetStore.getAssetUrl(id);
+});
+ipcMain.handle('deleteAsset', (e, id) => {
+    return assetStore.deleteAsset(id);
+});
 ipcMain.handle('createReminder', (e, r) => {
     const state = stateStore.getState();
     r.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);

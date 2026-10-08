@@ -64,6 +64,30 @@ if (window.isMobile && !window.api) {
     window.api = {
         get: async () => state,
         save: async (newState) => { state = newState; await saveState(); },
+        saveAsset: async (id, b64) => {
+            if (!window.Capacitor || !window.Capacitor.Plugins.Filesystem) return b64;
+            try {
+                const fs = window.Capacitor.Plugins.Filesystem;
+                const path = id + '.txt';
+                await fs.writeFile({ path, data: b64, directory: 'DATA' });
+                return 'capfs://' + path;
+            } catch(e) { return b64; } // fallback
+        },
+        getAsset: async (id) => {
+            if (!id.startsWith('capfs://')) return id;
+            try {
+                const fs = window.Capacitor.Plugins.Filesystem;
+                const res = await fs.readFile({ path: id.split('//')[1], directory: 'DATA' });
+                return res.data;
+            } catch(e) { return null; }
+        },
+        deleteAsset: async (id) => {
+            if (!id.startsWith('capfs://')) return;
+            try {
+                const fs = window.Capacitor.Plugins.Filesystem;
+                await fs.deleteFile({ path: id.split('//')[1], directory: 'DATA' });
+            } catch(e) {}
+        },
         createReminder: async (r) => { 
             r.id = Date.now().toString() + Math.random().toString().slice(2,6);
             state.reminders.push(r); 

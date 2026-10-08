@@ -2,6 +2,9 @@ const{contextBridge,ipcRenderer:i}=require('electron');
 contextBridge.exposeInMainWorld('api',{
  get:()=>i.invoke('get'),
  save:d=>i.invoke('save',d),
+ saveAsset:(id,b64)=>i.invoke('saveAsset',id,b64),
+ getAsset:id=>i.invoke('getAsset',id),
+ deleteAsset:id=>i.invoke('deleteAsset',id),
  createReminder:r=>i.invoke('createReminder',r),
  updateReminder:(id,u)=>i.invoke('updateReminder',id,u),
  deleteReminder:id=>i.invoke('deleteReminder',id),

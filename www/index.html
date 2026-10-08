@@ -372,7 +372,15 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
         <div style="display:flex; gap:10px; align-items:center;">
           <input type="file" id="customBuddyUpload" accept="image/png, image/jpeg, image/webp" style="flex:1">
           <input type="text" id="customBuddyName" placeholder="Buddy Name" style="flex:1">
-          <button class="btn-pri" id="btnSaveCustomBuddy">Save Custom Buddy</button>
+          <button class="btn-pri" id="btnSaveCustomBuddy">Save</button>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:20px;">
+        <h2>Manage Buddies</h2>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn-sec" id="btnExportBuddies">Export .pbuddy</button>
+          <button class="btn-sec" id="btnImportBuddies">Import .pbuddy</button>
+          <input type="file" id="importBuddyUpload" accept=".pbuddy" style="display:none">
         </div>
       </div>
     </div>
@@ -541,6 +549,19 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
       <div class="form-group"><label>Paint Color</label><select id="sVehicleColor"></select></div>
     </div>
     
+    <div class="form-group" style="margin-top:20px;">
+      <label>Emotion Preview</label>
+      <div class="chips" id="studioEmotions">
+        <button class="chip" data-emotion="idle">Idle</button>
+        <button class="chip" data-emotion="happy">Happy</button>
+        <button class="chip" data-emotion="sad">Sad</button>
+        <button class="chip" data-emotion="focused">Focused</button>
+        <button class="chip" data-emotion="excited">Excited</button>
+        <button class="chip" data-emotion="sleepy">Sleepy</button>
+        <button class="chip" data-emotion="celebrating">Celebrating</button>
+      </div>
+    </div>
+    
     <div style="margin-top:40px; display:flex; flex-direction:column; gap:10px">
       <button class="btn-ghost" id="sRnd">Surprise me!</button>
       <label class="btn-ghost" style="text-align:center; display:block">
@@ -657,15 +678,58 @@ if ($('#btnSaveCustomBuddy')) {
         const file = fileInput.files[0];
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const b64 = e.target.result;
+            let b64 = e.target.result;
+            // Write physical local asset to disk via AssetStore rather than state
+            if (window.api && window.api.saveAsset) {
+                b64 = await window.api.saveAsset('c_' + Date.now(), b64);
+            }
             const b = { id: 'c_' + Date.now(), name: nameInput.value || 'Custom Buddy', category: 'custom', asset: b64 };
             S.buddies = S.buddies || [];
             S.buddies.push(b);
             await save();
-            alert("Custom Buddy saved successfully!");
+            alert("Custom Buddy saved to physical storage successfully!");
             renderGallery();
         };
         reader.readAsDataURL(file);
+    };
+}
+if ($('#btnExportBuddies')) {
+    $('#btnExportBuddies').onclick = async () => {
+        if (!S.buddies || !S.buddies.length) return alert("No custom buddies to export.");
+        // Pack manifest + metadata into .pbuddy JSON
+        const pkg = { version: 1, type: "PulseBuddyPackage", buddies: S.buddies };
+        const blob = new Blob([JSON.stringify(pkg)], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `MyCustomBuddies_${Date.now()}.pbuddy`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+    $('#btnImportBuddies').onclick = () => $('#importBuddyUpload').click();
+    $('#importBuddyUpload').onchange = (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            try {
+                const pkg = JSON.parse(ev.target.result);
+                if (pkg.type !== "PulseBuddyPackage" || !pkg.buddies) throw new Error("Invalid .pbuddy format");
+                S.buddies = S.buddies || [];
+                // Prevent duplicate IDs/path traversal
+                pkg.buddies.forEach(b => {
+                    b.id = 'c_' + Date.now() + Math.random().toString(36).substr(2,5);
+                    b.name = (b.name || 'Imported').replace(/[^a-zA-Z0-9 _-]/g, '');
+                    S.buddies.push(b);
+                });
+                await save();
+                alert(`Successfully imported ${pkg.buddies.length} buddies!`);
+                renderGallery();
+            } catch(err) {
+                alert("Failed to import .pbuddy file: " + err.message);
+            }
+        };
+        reader.readAsText(file);
     };
 }
 
@@ -913,6 +977,22 @@ $('#sSpecies').onchange = (e) => {
     if(currentConfig.species === 'vehicle') { currentConfig.type = 0; currentConfig.color = 0; }
     updateStudioModel();
 };
+
+if ($('#studioEmotions')) {
+    $$('#studioEmotions .chip').forEach(btn => {
+        btn.onclick = (e) => {
+            const emotion = e.target.dataset.emotion;
+            if (studioInst) {
+                if (window.Sprites && window.Sprites.update) {
+                    window.Sprites.update(studioInst, emotion);
+                }
+                if (window.EmotionEngine && window.EmotionEngine.react) {
+                    window.EmotionEngine.react({ domElement: $('#studioView').firstChild }, emotion.toUpperCase());
+                }
+            }
+        };
+    });
+}
 
 ['sSkin','sHairType','sHair','sShirt','sPants','sAnimalColor','sVehicleType','sVehicleColor'].forEach(id => {
     $('#'+id).onchange = (e) => {
