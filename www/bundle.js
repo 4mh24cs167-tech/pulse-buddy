@@ -29424,43 +29424,20 @@ void main() {
   var AnimationController = class {
     constructor(mesh) {
       this.mesh = mesh;
-      this.rig = mesh.userData.rig;
-      this.state = "IDLE";
-      this.time = 0;
+      this.currentState = "IDLE";
+      this.targetState = "IDLE";
+      this.mixWeight = 1;
       this.speed = 1;
       this.paused = false;
-      this.blendTime = 0;
-      this.blendDuration = 0;
-      this.prevState = "IDLE";
-      this.basePose = this.capturePose();
+      this.time = 0;
+      this.poseA = this.createPoseMap();
+      this.poseB = this.createPoseMap();
     }
-    capturePose() {
-      if (!this.rig) return {};
-      const pose = {};
-      for (const [key, bone] of Object.entries(this.rig)) {
-        if (bone && bone.rotation) {
-          pose[key] = {
-            rot: bone.rotation.clone(),
-            pos: bone.position.clone()
-          };
-        }
-      }
-      return pose;
-    }
-    play(name) {
-      this.prevState = this.state;
-      this.state = name;
-      this.blendTime = 1;
-      this.blendDuration = 0;
-    }
-    crossFadeTo(name, duration) {
-      this.prevState = this.state;
-      this.state = name;
-      this.blendTime = 0;
-      this.blendDuration = duration;
-    }
-    stop() {
-      this.play("IDLE");
+    play(state) {
+      this.currentState = state;
+      this.targetState = state;
+      this.mixWeight = 1;
+      this.time = 0;
     }
     pause() {
       this.paused = true;
@@ -29468,217 +29445,252 @@ void main() {
     resume() {
       this.paused = false;
     }
+    stop() {
+      this.play("IDLE");
+      this.time = 0;
+    }
     setSpeed(speed) {
       this.speed = speed;
     }
-    queue(name) {
-    }
     reset() {
       this.time = 0;
-      this.play("IDLE");
+      this.mixWeight = 1;
+      this.currentState = "IDLE";
+      this.targetState = "IDLE";
     }
-    lerpPose(dt) {
-      if (!this.rig) return;
-      const currentTarget = this.evaluatePose(this.state, this.time);
-      let blendWeight = 1;
-      if (this.blendDuration > 0 && this.blendTime < this.blendDuration) {
-        this.blendTime += dt;
-        blendWeight = Math.min(this.blendTime / this.blendDuration, 1);
-      }
-      const prevTarget = blendWeight < 1 ? this.evaluatePose(this.prevState, this.time) : null;
-      for (const [key, bone] of Object.entries(this.rig)) {
-        if (!bone || !bone.rotation) continue;
-        const targetRot = new Euler().copy(currentTarget[key]?.rot || this.basePose[key].rot);
-        const targetPos = new Vector3().copy(currentTarget[key]?.pos || this.basePose[key].pos);
-        if (prevTarget && blendWeight < 1) {
-          const pRot = prevTarget[key]?.rot || this.basePose[key].rot;
-          const pPos = prevTarget[key]?.pos || this.basePose[key].pos;
-          const q1 = new Quaternion().setFromEuler(pRot);
-          const q2 = new Quaternion().setFromEuler(targetRot);
-          q1.slerp(q2, blendWeight);
-          bone.quaternion.copy(q1);
-          bone.position.lerpVectors(pPos, targetPos, blendWeight);
-        } else {
-          bone.rotation.copy(targetRot);
-          bone.position.copy(targetPos);
-        }
-      }
+    crossFadeTo(state, duration) {
+      if (this.targetState === state) return;
+      this.currentState = this.targetState;
+      this.targetState = state;
+      this.mixWeight = 0;
+      this.fadeSpeed = 1 / duration;
     }
-    evaluatePose(state, t) {
-      const pose = this.capturePose();
+    createPoseMap() {
+      return {
+        root: { pos: new Vector3(), rot: new Vector3() },
+        hips: { pos: new Vector3(), rot: new Vector3() },
+        spine: { pos: new Vector3(), rot: new Vector3() },
+        neck: { pos: new Vector3(), rot: new Vector3() },
+        lArm: { pos: new Vector3(), rot: new Vector3() },
+        rArm: { pos: new Vector3(), rot: new Vector3() },
+        lLeg: { pos: new Vector3(), rot: new Vector3() },
+        rLeg: { pos: new Vector3(), rot: new Vector3() },
+        flLeg: { pos: new Vector3(), rot: new Vector3() },
+        frLeg: { pos: new Vector3(), rot: new Vector3() },
+        blLeg: { pos: new Vector3(), rot: new Vector3() },
+        brLeg: { pos: new Vector3(), rot: new Vector3() },
+        tail: { pos: new Vector3(), rot: new Vector3() }
+      };
+    }
+    evaluatePose(state, pose, t) {
       const isHuman = this.mesh.userData.isHuman;
       const isAnimal = this.mesh.userData.isAnimal;
-      for (const key in pose) {
-        pose[key].rot.set(0, 0, 0);
+      const isPhoto = this.mesh.userData.isPhoto;
+      const isFantasy = this.mesh.userData.isFantasy;
+      const isRobot = this.mesh.userData.isRobot;
+      for (const k in pose) {
+        pose[k].pos.set(0, 0, 0);
+        pose[k].rot.set(0, 0, 0);
       }
-      if (isHuman) {
+      if (isHuman || isFantasy) {
         pose.hips.pos.y = 1;
-        pose.lArm.shoulder.rot.z = 0.3;
-        pose.rArm.shoulder.rot.z = -0.3;
         if (state === "WALK" || state === "RUN") {
-          const speedMult = state === "RUN" ? 2 : 1;
-          const amp = state === "RUN" ? 1 : 0.6;
-          const cycle = t * speedMult * 5;
-          pose.lLeg.hipJoint.rot.x = Math.sin(cycle) * amp;
-          pose.rLeg.hipJoint.rot.x = Math.sin(cycle + Math.PI) * amp;
-          pose.lLeg.knee.rot.x = Math.max(0, Math.sin(cycle + Math.PI / 2) * amp);
-          pose.rLeg.knee.rot.x = Math.max(0, Math.sin(cycle - Math.PI / 2) * amp);
-          pose.lArm.shoulder.rot.x = Math.sin(cycle + Math.PI) * amp;
-          pose.rArm.shoulder.rot.x = Math.sin(cycle) * amp;
-          pose.hips.pos.y = 1 + Math.abs(Math.sin(cycle * 2)) * 0.1 * amp;
-        } else if (state === "IDLE") {
-          pose.spine.rot.y = Math.sin(t) * 0.05;
-          pose.hips.pos.y = 1 + Math.sin(t * 2) * 0.02;
+          const spd = state === "RUN" ? 10 : 6;
+          const cycle = t * spd;
+          pose.lLeg.rot.x = Math.sin(cycle) * 0.6;
+          pose.rLeg.rot.x = Math.sin(cycle + Math.PI) * 0.6;
+          pose.lArm.rot.x = Math.sin(cycle + Math.PI) * 0.5;
+          pose.rArm.rot.x = Math.sin(cycle) * 0.5;
+          pose.hips.pos.y = 1 + Math.abs(Math.sin(cycle * 2)) * 0.05;
+          pose.spine.rot.y = Math.sin(cycle) * 0.1;
         } else if (state === "WAVE") {
-          pose.rArm.shoulder.rot.z = -2;
-          pose.rArm.shoulder.rot.x = 0;
-          pose.rArm.elbow.rot.z = Math.sin(t * 10) * 0.5 - 0.5;
-        } else if (state === "HAPPY") {
+          pose.rArm.rot.z = -2;
+          pose.rArm.rot.x = Math.sin(t * 10) * 0.5;
+        } else if (state === "HAPPY" || state === "CELEBRATE") {
           pose.hips.pos.y = 1 + Math.abs(Math.sin(t * 8)) * 0.2;
-          pose.lArm.shoulder.rot.z = 2;
-          pose.rArm.shoulder.rot.z = -2;
-          pose.spine.rot.x = 0.2;
+          pose.lArm.rot.z = 2.5;
+          pose.rArm.rot.z = -2.5;
+          if (state === "CELEBRATE") pose.root.rot.y = t * 4;
         } else if (state === "SAD") {
-          pose.spine.rot.x = -0.3;
-          pose.neck.rot.x = -0.4;
-          pose.lArm.shoulder.rot.z = 0.1;
-          pose.rArm.shoulder.rot.z = -0.1;
+          pose.spine.rot.x = 0.3;
+          pose.neck.rot.x = 0.5;
+          pose.lArm.rot.z = 0.2;
+          pose.rArm.rot.z = -0.2;
         } else if (state === "FOCUSED") {
-          pose.rArm.shoulder.rot.x = -1;
-          pose.rArm.elbow.rot.x = -1.5;
-          pose.neck.rot.y = Math.sin(t * 2) * 0.2;
-        } else if (state === "CELEBRATE") {
-          pose.hips.pos.y = 1 + Math.abs(Math.sin(t * 10)) * 0.5;
-          pose.lArm.shoulder.rot.z = 2.5;
-          pose.rArm.shoulder.rot.z = -2.5;
-          pose.lArm.shoulder.rot.x = -1;
-          pose.rArm.shoulder.rot.x = -1;
-          pose.spine.rot.y = t * 2;
+          pose.rArm.rot.z = -1;
+          pose.rArm.rot.x = -1;
+          pose.neck.rot.y = -0.2;
+        } else {
+          pose.spine.rot.x = Math.sin(t * 2) * 0.02;
+          pose.lArm.rot.z = 0.1;
+          pose.rArm.rot.z = -0.1;
+        }
+        if (isFantasy) {
+          if (pose.lArm) pose.lArm.rot.z += Math.sin(t * 5) * 0.3;
+          if (pose.rArm) pose.rArm.rot.z -= Math.sin(t * 5) * 0.3;
+          if (pose.tail) pose.tail.rot.x = Math.sin(t * 3) * 0.3;
         }
       } else if (isAnimal) {
         pose.hips.pos.y = 0.5;
         if (state === "WALK" || state === "RUN") {
-          const cycle = t * (state === "RUN" ? 10 : 5);
+          const spd = state === "RUN" ? 10 : 6;
+          const cycle = t * spd;
           pose.flLeg.rot.x = Math.sin(cycle) * 0.5;
           pose.brLeg.rot.x = Math.sin(cycle) * 0.5;
           pose.frLeg.rot.x = Math.sin(cycle + Math.PI) * 0.5;
           pose.blLeg.rot.x = Math.sin(cycle + Math.PI) * 0.5;
           if (pose.tail) pose.tail.rot.z = Math.sin(cycle * 2) * 0.3;
+          pose.hips.pos.y = 0.5 + Math.abs(Math.sin(cycle * 2)) * 0.1;
         } else if (state === "IDLE") {
           if (pose.tail) pose.tail.rot.z = Math.sin(t * 5) * 0.2;
           pose.neck.rot.x = Math.sin(t) * 0.05;
-        } else if (state === "HAPPY" || state === "CELEBRATE") {
-          pose.hips.pos.y = 0.5 + Math.abs(Math.sin(t * 10)) * 0.3;
-          if (pose.tail) pose.tail.rot.z = Math.sin(t * 20) * 0.5;
         } else if (state === "SAD") {
           pose.neck.rot.x = -0.5;
           if (pose.tail) pose.tail.rot.x = -0.4;
+        } else if (state === "CELEBRATE") {
+          pose.hips.pos.y = 0.5 + Math.abs(Math.sin(t * 10)) * 0.3;
         }
-      } else if (this.mesh.userData.isPhoto) {
+      } else if (isRobot) {
+        pose.hips.pos.y = 1;
+        if (state === "WALK") {
+          const cycle = t * 4;
+          pose.lLeg.rot.x = Math.sign(Math.sin(cycle)) * 0.4;
+          pose.rLeg.rot.x = Math.sign(Math.sin(cycle + Math.PI)) * 0.4;
+        } else if (state === "CELEBRATE") {
+          pose.root.rot.y = t * 5;
+        }
+      } else if (isPhoto) {
         pose.hips.pos.y = 0.5;
         if (state === "WALK" || state === "RUN") {
           pose.hips.pos.y = 0.5 + Math.abs(Math.sin(t * 8)) * 0.1;
           pose.spine.rot.z = Math.sin(t * 8) * 0.1;
         } else if (state === "IDLE") {
           pose.spine.rot.x = Math.sin(t * 2) * 0.02;
-        } else if (state === "HAPPY" || state === "CELEBRATE") {
-          pose.hips.pos.y = 0.5 + Math.abs(Math.sin(t * 12)) * 0.2;
-          pose.spine.rot.z = Math.sin(t * 6) * 0.2;
         } else if (state === "SAD") {
           pose.spine.rot.x = -0.2;
           pose.hips.pos.y = 0.4;
         }
-      } else {
-        if (state === "WALK" || state === "RUN") {
-          pose.hips.pos.y = 0.5 + Math.sin(t * 10) * 0.05;
-          if (pose.rArm && pose.lArm) {
-            pose.lArm.shoulder.rot.x = t * 10;
-            pose.rArm.shoulder.rot.x = t * 10;
+      }
+    }
+    applyPoseToRig(poseMap, weight) {
+      const rig = this.mesh.userData.rig;
+      if (!rig) return;
+      const euler = new Euler();
+      for (const k in poseMap) {
+        if (rig[k]) {
+          const bone = rig[k];
+          const p = poseMap[k];
+          if (k === "hips" || k === "root") {
+            bone.position.lerp(p.pos, weight);
           }
-        } else if (state === "HAPPY" || state === "CELEBRATE") {
-          pose.hips.pos.y = 0.5 + Math.abs(Math.sin(t * 8)) * 0.4;
-          pose.spine.rot.y = t * 5;
+          euler.set(p.rot.x, p.rot.y, p.rot.z);
+          const q = new Quaternion().setFromEuler(euler);
+          if (weight === 1) {
+            bone.quaternion.copy(q);
+          } else {
+            bone.quaternion.slerp(q, weight);
+          }
         }
       }
-      return pose;
     }
     update(dt) {
-      if (!this.paused) this.time += dt * this.speed;
-      this.lerpPose(dt);
+      if (this.paused) return;
+      this.time += dt * this.speed;
+      if (this.mixWeight < 1) {
+        this.mixWeight += this.fadeSpeed * dt;
+        if (this.mixWeight > 1) this.mixWeight = 1;
+      }
+      if (this.mixWeight >= 1) {
+        this.evaluatePose(this.targetState, this.poseA, this.time);
+        this.applyPoseToRig(this.poseA, 1);
+      } else {
+        this.evaluatePose(this.currentState, this.poseA, this.time);
+        this.evaluatePose(this.targetState, this.poseB, this.time);
+        this.applyPoseToRig(this.poseA, 1);
+        this.applyPoseToRig(this.poseB, this.mixWeight);
+      }
     }
   };
 
   // src/buddy/BuddyEngine.js
   var BuddyMovementController = class {
-    constructor(mesh, domElement) {
+    constructor(mesh, domElement, camera) {
       this.mesh = mesh;
       this.domElement = domElement;
-      this.x = 100;
-      this.y = 20;
-      this.scale = 1;
-      this.rotation = 0;
+      this.camera = camera;
+      this.mesh.position.set(5, 0, 0);
       this.direction = -1;
       this.velocity = 0;
       this.targetX = null;
-      this.targetY = null;
       this.state = "IDLE";
       this.onTargetReached = null;
+      this.targetRotationY = -Math.PI / 2;
     }
-    walkTo(x, y, cb) {
-      this.targetX = x;
-      this.targetY = y;
+    walkTo(worldX, cb) {
+      this.targetX = worldX;
       this.state = "WALKING";
       this.onTargetReached = cb;
-      this.faceDirection(x > this.x ? 1 : -1);
+      this.faceDirection(worldX > this.mesh.position.x ? 1 : -1);
     }
     walkFromLeft() {
-      this.x = -200;
-      this.updateDom();
-      this.walkTo(100, 20);
+      this.mesh.position.x = -8;
+      this.walkTo(-2);
     }
     walkFromRight() {
-      this.x = window.innerWidth + 200;
-      this.updateDom();
-      this.walkTo(window.innerWidth - 300, 20);
+      this.mesh.position.x = 8;
+      this.walkTo(2);
     }
     walkOffscreenLeft(cb) {
-      this.walkTo(-300, 20, cb);
+      this.walkTo(-8, cb);
     }
     walkOffscreenRight(cb) {
-      this.walkTo(window.innerWidth + 300, 20, cb);
+      this.walkTo(8, cb);
     }
     stopAt() {
       this.targetX = null;
-      this.targetY = null;
       this.state = "IDLE";
       this.velocity = 0;
     }
     faceDirection(dir) {
       this.direction = dir;
-      if (this.mesh) this.mesh.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+      this.targetRotationY = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
     }
-    updateDom() {
-      if (!this.domElement) return;
-      this.domElement.style.transform = `translate3d(${this.x}px, ${-this.y}px, 0)`;
+    faceUser() {
+      this.targetRotationY = 0;
+    }
+    syncDom() {
+      if (!this.domElement || !this.camera) return;
+      const pos = this.mesh.position.clone();
+      pos.project(this.camera);
+      const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (pos.y * -0.5 + 0.5) * window.innerHeight;
     }
     update(dt) {
+      const diff = this.targetRotationY - this.mesh.rotation.y;
+      if (Math.abs(diff) > 0.01) {
+        this.mesh.rotation.y += diff * 10 * dt;
+      }
       if (this.state === "WALKING" && this.targetX !== null) {
-        const dx = this.targetX - this.x;
+        const dx = this.targetX - this.mesh.position.x;
         const dist = Math.abs(dx);
-        if (dist < 5) {
-          this.x = this.targetX;
+        const speed = Math.min(3, dist * 5 + 0.5);
+        if (dist < 0.05) {
+          this.mesh.position.x = this.targetX;
           this.stopAt();
-          this.updateDom();
           if (this.onTargetReached) {
             const cb = this.onTargetReached;
             this.onTargetReached = null;
             cb();
           }
         } else {
-          this.velocity = Math.sign(dx) * 150;
-          this.x += this.velocity * dt;
-          this.updateDom();
+          this.velocity = Math.sign(dx) * speed;
+          this.mesh.position.x += this.velocity * dt;
         }
+      }
+      if (this.domElement && this.domElement.id === "buddy") {
+        const hw = window.innerWidth / 2;
+        const px = this.mesh.position.x / 5 * hw + hw;
+        this.domElement.style.left = px + "px";
       }
     }
   };
@@ -29712,47 +29724,105 @@ void main() {
       this.anim = animController;
       this.movement = movementController;
       this.emotion = emotionController;
+      this.queue = [];
+      this.isExecuting = false;
+    }
+    enqueue(action) {
+      this.queue.push(action);
+      this.processQueue();
+    }
+    clearQueue() {
+      this.queue = [];
+      this.isExecuting = false;
+    }
+    async processQueue() {
+      if (this.isExecuting || this.queue.length === 0) return;
+      this.isExecuting = true;
+      const action = this.queue.shift();
+      await action();
+      this.isExecuting = false;
+      this.processQueue();
     }
     idle() {
       this.movement.stopAt();
       this.anim.crossFadeTo("IDLE", 0.5);
-      this.movement.mesh.rotation.y = 0;
+      this.movement.faceUser();
     }
     enterScreen(cb = null) {
-      this.anim.crossFadeTo("WALK", 0.3);
-      this.movement.x = window.innerWidth + 200;
-      this.movement.updateDom();
-      this.movement.walkTo(window.innerWidth - 300, 20, () => {
-        this.idle();
-        if (cb) cb();
-      });
+      this.enqueue(() => new Promise((resolve) => {
+        this.anim.crossFadeTo("WALK", 0.3);
+        this.movement.mesh.position.x = 6;
+        this.movement.walkTo(2, () => {
+          this.idle();
+          if (cb) cb();
+          resolve();
+        });
+      }));
     }
     leaveScreen(toRight = true, cb = null) {
-      this.anim.crossFadeTo("WALK", 0.3);
-      if (toRight) {
-        this.movement.walkOffscreenRight(cb);
-      } else {
-        this.movement.walkOffscreenLeft(cb);
-      }
+      this.enqueue(() => new Promise((resolve) => {
+        this.anim.crossFadeTo("WALK", 0.3);
+        if (toRight) {
+          this.movement.walkOffscreenRight(() => {
+            if (cb) cb();
+            resolve();
+          });
+        } else {
+          this.movement.walkOffscreenLeft(() => {
+            if (cb) cb();
+            resolve();
+          });
+        }
+      }));
     }
     triggerEvent(event) {
+      this.clearQueue();
       if (event === "DONE") {
-        this.movement.mesh.rotation.y = 0;
-        this.emotion.react("HAPPY");
-        setTimeout(() => this.idle(), 3e3);
+        this.enqueue(() => new Promise((res) => {
+          this.movement.faceUser();
+          this.emotion.react("HAPPY");
+          setTimeout(() => {
+            this.emotion.react("CELEBRATE");
+          }, 1e3);
+          setTimeout(() => {
+            this.idle();
+            res();
+          }, 4e3);
+        }));
       } else if (event === "MISSED") {
-        this.movement.stopAt();
-        this.movement.mesh.rotation.y = Math.PI / 4;
-        this.emotion.react("SAD");
-        setTimeout(() => this.idle(), 4e3);
+        this.enqueue(() => new Promise((res) => {
+          this.movement.stopAt();
+          this.movement.faceUser();
+          setTimeout(() => {
+            this.emotion.react("SAD");
+            setTimeout(() => {
+              this.idle();
+              res();
+            }, 4e3);
+          }, 500);
+        }));
       } else if (event === "SNOOZE") {
-        this.movement.mesh.rotation.y = 0;
-        this.emotion.react("FOCUSED");
-        setTimeout(() => this.idle(), 3e3);
+        this.enqueue(() => new Promise((res) => {
+          this.movement.faceUser();
+          this.emotion.react("FOCUSED");
+          setTimeout(() => {
+            this.idle();
+            res();
+          }, 3e3);
+        }));
       } else if (event === "GOAL") {
-        this.movement.mesh.rotation.y = 0;
-        this.emotion.react("CELEBRATE");
-        setTimeout(() => this.idle(), 5e3);
+        this.enqueue(() => new Promise((res) => {
+          this.anim.crossFadeTo("WALK", 0.2);
+          this.movement.mesh.position.x = 6;
+          this.movement.walkTo(2, () => {
+            this.movement.faceUser();
+            this.emotion.react("CELEBRATE");
+            setTimeout(() => {
+              this.idle();
+              res();
+            }, 5e3);
+          });
+        }));
       }
     }
   };
@@ -29772,7 +29842,7 @@ void main() {
       return (seed - 1) / 2147483646;
     };
   }
-  var createBone = (name) => {
+  var createJoint = (name) => {
     const b = new Group();
     b.name = name;
     return b;
@@ -29805,20 +29875,20 @@ void main() {
       const shirtMat = getMat(shirtColors[config.shirt], "standard", 0.9);
       const pantsMat = getMat(pantsColors[config.pants], "standard", 0.9);
       const shoeMat = getMat(1118481, "physical", 0.4);
-      const root = createBone("root");
+      const root = createJoint("root");
       group.add(root);
-      const hips = createBone("hips");
+      const hips = createJoint("hips");
       hips.position.y = 1;
       root.add(hips);
       const sX = config.buildType === 0 ? 0.8 : config.buildType === 2 ? 1.2 : 1;
       const sY = config.heightType === 0 ? 0.8 : config.heightType === 2 ? 1.2 : 1;
-      const spine = createBone("spine");
+      const spine = createJoint("spine");
       hips.add(spine);
       const torso = new Mesh(new CapsuleGeometry(0.35 * sX, 0.6 * sY, 4, 12), shirtMat);
       torso.position.y = 0.3 * sY + 0.35;
       torso.castShadow = true;
       spine.add(torso);
-      const neck = createBone("neck");
+      const neck = createJoint("neck");
       neck.position.y = 0.6 * sY + 0.7;
       spine.add(neck);
       const head = new Mesh(new SphereGeometry(0.4, 16, 16), skinMat);
@@ -29841,13 +29911,13 @@ void main() {
       if (config.hairType < 3) hairMesh.rotation.z = Math.PI / 2;
       neck.add(hairMesh);
       const addArm = (isLeft) => {
-        const shoulder = createBone(isLeft ? "LShoulder" : "RShoulder");
+        const shoulder = createJoint(isLeft ? "LShoulder" : "RShoulder");
         shoulder.position.set((isLeft ? -1 : 1) * (0.45 * sX), 0.6 * sY + 0.5, 0);
         spine.add(shoulder);
         const upperArm = new Mesh(new CapsuleGeometry(0.12, 0.4, 4, 8), shirtMat);
         upperArm.position.y = -0.2;
         shoulder.add(upperArm);
-        const elbow = createBone(isLeft ? "LElbow" : "RElbow");
+        const elbow = createJoint(isLeft ? "LElbow" : "RElbow");
         elbow.position.y = -0.4;
         shoulder.add(elbow);
         const lowerArm = new Mesh(new CapsuleGeometry(0.1, 0.4, 4, 8), skinMat);
@@ -29858,13 +29928,13 @@ void main() {
       const lArm = addArm(true);
       const rArm = addArm(false);
       const addLeg = (isLeft) => {
-        const hipJoint = createBone(isLeft ? "LHip" : "RHip");
+        const hipJoint = createJoint(isLeft ? "LHip" : "RHip");
         hipJoint.position.set((isLeft ? -1 : 1) * (0.2 * sX), 0.2, 0);
         hips.add(hipJoint);
         const thigh = new Mesh(new CapsuleGeometry(0.16, 0.4 * sY, 4, 8), pantsMat);
         thigh.position.y = -0.2 * sY;
         hipJoint.add(thigh);
-        const knee = createBone(isLeft ? "LKnee" : "RKnee");
+        const knee = createJoint(isLeft ? "LKnee" : "RKnee");
         knee.position.y = -0.4 * sY;
         hipJoint.add(knee);
         const calf = new Mesh(new CapsuleGeometry(0.14, 0.4 * sY, 4, 8), skinMat);
@@ -29898,15 +29968,15 @@ void main() {
       const furMat = getMat(animalColors[config.color], "standard", 0.9);
       const secMat = getMat(16777215, "standard", 0.9);
       const eyeMat = getMat(1118481, "physical");
-      const root = createBone("root");
+      const root = createJoint("root");
       group.add(root);
-      const bodyBone = createBone("body");
+      const bodyBone = createJoint("body");
       bodyBone.position.y = 0.7;
       root.add(bodyBone);
       const body = new Mesh(new CapsuleGeometry(0.3, 0.4, 8, 16), furMat);
       body.castShadow = true;
       bodyBone.add(body);
-      const headBone = createBone("head");
+      const headBone = createJoint("head");
       headBone.position.y = 0.5;
       bodyBone.add(headBone);
       const head = new Mesh(new SphereGeometry(0.35, 16, 16), furMat);
@@ -29930,7 +30000,7 @@ void main() {
       earR.rotation.z = -0.2;
       headBone.add(earL);
       headBone.add(earR);
-      const tailBone = createBone("tail");
+      const tailBone = createJoint("tail");
       tailBone.position.set(0, -0.2, -0.25);
       bodyBone.add(tailBone);
       const tail = new Mesh(new CapsuleGeometry(0.08, 0.4, 4, 8), furMat);
@@ -29938,7 +30008,7 @@ void main() {
       tail.rotation.x = Math.PI / 2;
       tailBone.add(tail);
       const addLimb = (x, y, z) => {
-        const l = createBone("limb");
+        const l = createJoint("limb");
         l.position.set(x, y, z);
         bodyBone.add(l);
         const mesh = new Mesh(new CapsuleGeometry(0.08, 0.25, 4, 8), furMat);
@@ -29969,9 +30039,9 @@ void main() {
       const bodyMat = getMat(vehicleColors[config.color], "physical", 0.2);
       const glassMat = new MeshPhysicalMaterial({ color: 8965375, transmission: 0.9, opacity: 1, transparent: true, roughness: 0.1 });
       const detailMat = getMat(2236962, "standard", 0.5);
-      const root = createBone("root");
+      const root = createJoint("root");
       group.add(root);
-      const bodyBone = createBone("body");
+      const bodyBone = createJoint("body");
       bodyBone.position.y = 1;
       root.add(bodyBone);
       const rotors = [];
@@ -30040,6 +30110,91 @@ void main() {
       return group;
     }
   };
+  var RobotGenerator = class {
+    static generate(config) {
+      const group = new Group();
+      group.userData = { isRobot: true, config };
+      const mat = getMat(6710886, "standard", 0.8, 1);
+      const glow = getMat(65484, "basic");
+      const root = createJoint("root");
+      group.add(root);
+      const hips = createJoint("hips");
+      root.add(hips);
+      hips.position.y = 1;
+      const spine = createJoint("spine");
+      hips.add(spine);
+      const torso = new Mesh(new BoxGeometry(0.6, 0.8, 0.4), mat);
+      torso.position.y = 0.4;
+      spine.add(torso);
+      const head = createJoint("neck");
+      spine.add(head);
+      head.position.y = 0.8;
+      const skull = new Mesh(new BoxGeometry(0.4, 0.4, 0.4), mat);
+      skull.position.y = 0.2;
+      head.add(skull);
+      const eye = new Mesh(new BoxGeometry(0.3, 0.1, 0.1), glow);
+      eye.position.set(0, 0.2, 0.21);
+      head.add(eye);
+      const lLeg = createJoint("lLeg");
+      hips.add(lLeg);
+      lLeg.position.set(0.2, 0, 0);
+      const rLeg = createJoint("rLeg");
+      hips.add(rLeg);
+      rLeg.position.set(-0.2, 0, 0);
+      lLeg.add(new Mesh(new BoxGeometry(0.15, 1, 0.15), mat).translateY(-0.5));
+      rLeg.add(new Mesh(new BoxGeometry(0.15, 1, 0.15), mat).translateY(-0.5));
+      group.userData.rig = { root, hips, spine, neck: head, lLeg, rLeg };
+      return group;
+    }
+  };
+  var FantasyGenerator = class {
+    static generate(config) {
+      const group = new Group();
+      group.userData = { isFantasy: true, config };
+      const mat = getMat(11154431, "standard", 0.2, 0.1);
+      const root = createJoint("root");
+      group.add(root);
+      const hips = createJoint("hips");
+      root.add(hips);
+      hips.position.y = 1;
+      const spine = createJoint("spine");
+      hips.add(spine);
+      const torso = new Mesh(new SphereGeometry(0.4, 16, 16), mat);
+      torso.position.y = 0.4;
+      torso.scale.y = 1.5;
+      spine.add(torso);
+      const lArm = createJoint("lArm");
+      spine.add(lArm);
+      lArm.position.set(0.4, 0.8, 0);
+      const rArm = createJoint("rArm");
+      spine.add(rArm);
+      rArm.position.set(-0.4, 0.8, 0);
+      const wingGeo = new ConeGeometry(0.8, 1.5, 3);
+      const lWing = new Mesh(wingGeo, mat);
+      lWing.rotation.z = -Math.PI / 2;
+      lWing.position.x = 0.75;
+      const rWing = new Mesh(wingGeo, mat);
+      rWing.rotation.z = Math.PI / 2;
+      rWing.position.x = -0.75;
+      lArm.add(lWing);
+      rArm.add(rWing);
+      const head = createJoint("neck");
+      spine.add(head);
+      head.position.y = 1;
+      const skull = new Mesh(new SphereGeometry(0.3, 16, 16), mat);
+      skull.position.y = 0.15;
+      head.add(skull);
+      const tail = createJoint("tail");
+      hips.add(tail);
+      tail.position.set(0, 0, -0.4);
+      const tailMesh = new Mesh(new ConeGeometry(0.1, 1, 8), mat);
+      tailMesh.rotation.x = Math.PI / 2;
+      tailMesh.position.z = -0.5;
+      tail.add(tailMesh);
+      group.userData.rig = { root, hips, spine, neck: head, lArm, rArm, tail };
+      return group;
+    }
+  };
   var BuddyViewer = class {
     constructor() {
       this.renderer = new WebGLRenderer({ alpha: true, premultipliedAlpha: true, antialias: true });
@@ -30093,14 +30248,15 @@ void main() {
         spine.add(plane);
         model.add(root);
         model.userData.rig = { root, hips, spine };
-      } else if (typeof id === "object") {
-        if (id.species === "human") model = HumanGenerator.generate(id);
-        else if (id.species === "animal") model = AnimalGenerator.generate(id);
-        else model = VehicleGenerator.generate(id);
       } else {
-        if (id < 24) model = HumanGenerator.generate(id);
-        else if (id < 40) model = AnimalGenerator.generate(id);
-        else model = VehicleGenerator.generate(id);
+        let isObj = typeof id === "object";
+        let cat = isObj ? id.species : null;
+        let idNum = isObj ? null : id;
+        if (cat === "human" || idNum !== null && idNum < 18) model = HumanGenerator.generate(id);
+        else if (cat === "animal" || idNum !== null && idNum < 42) model = AnimalGenerator.generate(id);
+        else if (cat === "vehicle" || idNum !== null && idNum < 54) model = VehicleGenerator.generate(id);
+        else if (cat === "robot" || idNum !== null && idNum < 64) model = RobotGenerator.generate(id);
+        else model = FantasyGenerator.generate(id);
       }
       this.scene.add(model);
       const anim = new AnimationController(model);
@@ -30148,9 +30304,14 @@ void main() {
     updateModel(inst, config) {
       if (inst.model) this.disposeModel(inst.model);
       let model;
-      if (config.species === "human") model = HumanGenerator.generate(config);
-      else if (config.species === "animal") model = AnimalGenerator.generate(config);
-      else model = VehicleGenerator.generate(config);
+      let isObj2 = typeof config === "object";
+      let cat2 = isObj2 ? config.species : null;
+      let idNum2 = isObj2 ? null : config;
+      if (cat2 === "human" || idNum2 !== null && idNum2 < 18) model = HumanGenerator.generate(config);
+      else if (cat2 === "animal" || idNum2 !== null && idNum2 < 42) model = AnimalGenerator.generate(config);
+      else if (cat2 === "vehicle" || idNum2 !== null && idNum2 < 54) model = VehicleGenerator.generate(config);
+      else if (cat2 === "robot" || idNum2 !== null && idNum2 < 64) model = RobotGenerator.generate(config);
+      else model = FantasyGenerator.generate(config);
       this.scene.add(model);
       inst.model = model;
       inst.anim = new AnimationController(model);

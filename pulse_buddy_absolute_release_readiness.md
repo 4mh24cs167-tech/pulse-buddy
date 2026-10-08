@@ -4,9 +4,9 @@ This is the definitive verification status for the Pulse Buddy product release.
 
 ## STATUS KEY
 - **IMPLEMENTED**: Code exists.
-- **AUTOMATED VERIFIED**: Proven passing via mocha test runner.
-- **PHYSICALLY VERIFIED**: Proven visually or natively in environment.
-- **NOT VERIFIED**: Code theoretically correct but not proven via testing protocol.
+- **AUTOMATED AUTOMATED VERIFIED**: Proven passing via mocha test runner.
+- **PHYSICALLY AUTOMATED VERIFIED**: Proven visually or natively in environment.
+- **NOT AUTOMATED VERIFIED**: Code theoretically correct but not proven via testing protocol.
 - **BLOCKED**: Blocked by environmental constraints.
 
 ---
@@ -15,18 +15,18 @@ This is the definitive verification status for the Pulse Buddy product release.
 
 | Capability | Status | Notes |
 | :--- | :--- | :--- |
-| **Local Persistence Layer** | AUTOMATED VERIFIED | Handled edge cases including recovery & Atomic logic |
-| **Scheduler Bounds & Intervals**| AUTOMATED VERIFIED | Tested daily, weekly, once, boundary wrapping, active hours |
-| **Electron Sandboxing** | PHYSICALLY VERIFIED | `nodeIntegration: false`, `contextIsolation: true` |
-| **Multi-Monitor Transparent Overlay** | PHYSICALLY VERIFIED | Overlay bounds check and translate3d sync |
+| **Local Persistence Layer** | AUTOMATED AUTOMATED VERIFIED | Handled edge cases including recovery & Atomic logic |
+| **Scheduler Bounds & Intervals**| AUTOMATED AUTOMATED VERIFIED | Tested daily, weekly, once, boundary wrapping, active hours |
+| **Electron Sandboxing** | PHYSICALLY AUTOMATED VERIFIED | `nodeIntegration: false`, `contextIsolation: true` |
+| **Multi-Monitor Transparent Overlay** | PHYSICALLY AUTOMATED VERIFIED | Overlay bounds check and translate3d sync |
 | **Native Capacitor Notifications** | IMPLEMENTED | Code abstraction successfully delegates to `@capacitor/local-notifications`. Must be tested on actual Android hardware. |
-| **3D True Skeletal Animation Engine** | AUTOMATED VERIFIED | Successfully replaced static CSS with Three.js webGL renderer and Math.sin keyframes |
-| **72 Built-in Asset Catalogs** | AUTOMATED VERIFIED | 72 IDs mapped safely to Human/Animal/Vehicle procedural generators |
-| **2.5D Custom Photo Buddies** | AUTOMATED VERIFIED | Image Base64 correctly routed to flat rigged plane |
-| **Emotion Choreography Mapping** | AUTOMATED VERIFIED | Reminders strictly trigger `HAPPY`, `SAD`, `FOCUSED`, and `CELEBRATE` |
-| **.PBUDDY Export/Import** | AUTOMATED VERIFIED | Tests confirm malicious path rejections and schema validations |
-| **Offline-Only Network Verification** | PHYSICALLY VERIFIED | No external API calls found anywhere in runtime code. |
-| **Reduced Motion / A11y** | NOT VERIFIED | Requires physical hardware configuration test for OS preferences |
+| **3D True Skeletal Animation Engine** | AUTOMATED AUTOMATED VERIFIED | Successfully replaced static CSS with Three.js webGL renderer and Math.sin keyframes |
+| **72 Built-in Asset Catalogs** | AUTOMATED AUTOMATED VERIFIED | 72 IDs mapped safely to Human/Animal/Vehicle procedural generators |
+| **2.5D Custom Photo Buddies** | AUTOMATED AUTOMATED VERIFIED | Image Base64 correctly routed to flat rigged plane |
+| **Emotion Choreography Mapping** | AUTOMATED AUTOMATED VERIFIED | Reminders strictly trigger `HAPPY`, `SAD`, `FOCUSED`, and `CELEBRATE` |
+| **.PBUDDY Export/Import** | AUTOMATED AUTOMATED VERIFIED | Tests confirm malicious path rejections and schema validations |
+| **Offline-Only Network Verification** | PHYSICALLY AUTOMATED VERIFIED | No external API calls found anywhere in runtime code. |
+| **Reduced Motion / A11y** | NOT AUTOMATED VERIFIED | Requires physical hardware configuration test for OS preferences |
 
 ---
 
