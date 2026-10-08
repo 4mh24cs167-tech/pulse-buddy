@@ -128,3 +128,12 @@ jobs:
         with:
           name: release_manifest.txt
           path: release_manifest.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/bundle/release/app-release.aab
+            release_manifest.txt
+          name: Release ${{ github.ref_name }}
