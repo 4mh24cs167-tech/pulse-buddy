@@ -54,11 +54,11 @@ jobs:
 
       - name: Build Android Release AAB
         working-directory: android
-        run: ./gradlew bundleRelease
+        run: chmod +x gradlew && ./gradlew bundleRelease
 
       - name: Build Android Release APK
         working-directory: android
-        run: ./gradlew assembleRelease
+        run: chmod +x gradlew && ./gradlew assembleRelease
 
       - name: Locate Android build-tools apksigner
         id: locate_apksigner
