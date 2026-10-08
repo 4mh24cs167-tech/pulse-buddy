@@ -1,0 +1,929 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* 🚀 CRAZY NEON CYBERPUNK UI 🚀 */
+:root {
+  --bg: #050505;
+  --panel: rgba(10, 12, 16, 0.7);
+  --panel-border: rgba(0, 255, 170, 0.3);
+  --accent: #00ffaa;
+  --accent-grad: linear-gradient(135deg, #00ffaa 0%, #00a2ff 100%);
+  --text: #ffffff;
+  --text-mut: #6b7a90;
+  --radius: 12px;
+}
+
+body {
+  margin: 0; padding: 0; height: 100vh;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  display: flex;
+}
+
+/* Cybernetic Grid & Glowing Orbs Background */
+.aurora {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: 
+    linear-gradient(rgba(0, 255, 170, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 170, 0.05) 1px, transparent 1px),
+    radial-gradient(circle at 30% 20%, rgba(0, 255, 170, 0.2), transparent 40%),
+    radial-gradient(circle at 70% 80%, rgba(0, 162, 255, 0.2), transparent 40%);
+  background-size: 30px 30px, 30px 30px, 100% 100%, 100% 100%;
+  z-index: 0;
+  pointer-events: none;
+  animation: grid-scan 10s linear infinite;
+}
+@keyframes grid-scan {
+  0% { background-position: 0 0, 0 0, 0 0, 0 0; }
+  100% { background-position: 0 30px, 30px 0, 0 0, 0 0; }
+}
+
+.app {
+  position: relative; z-index: 1;
+  display: flex; width: 100%; height: 100%;
+}
+
+/* Holographic Sidebar */
+.sidebar {
+  width: 260px;
+  background: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(25px);
+  border-right: 1px solid var(--panel-border);
+  box-shadow: 2px 0 20px rgba(0, 255, 170, 0.1);
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.logo {
+  font-size: 28px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+  margin-bottom: 40px; padding-left: 15px;
+  background: var(--accent-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(0, 255, 170, 0.5);
+}
+.sidebar button {
+  appearance: none; background: transparent; border: none;
+  color: var(--text-mut); font: inherit; font-size: 15px; font-weight: 600;
+  text-align: left; padding: 12px 15px; border-radius: 12px;
+  cursor: pointer; transition: all 0.2s ease;
+}
+.sidebar button:hover {
+  background: rgba(255,255,255,0.05); color: var(--text);
+}
+.sidebar button.active {
+  background: rgba(255,255,255,0.1); color: var(--text);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+/* Main Content */
+.main {
+  flex: 1; position: relative;
+  overflow-y: auto; overflow-x: hidden;
+  padding: 40px;
+}
+.tab-view { display: none; animation: fade-in 0.3s ease; }
+.tab-view.active { display: block; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+h1 { font-size: 32px; font-weight: 700; margin: 0 0 30px 0; letter-spacing: -1px; }
+h2 { font-size: 20px; font-weight: 600; margin: 0 0 20px 0; }
+
+/* Panels */
+.panel {
+  background: var(--panel);
+  backdrop-filter: blur(25px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 30px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,255,170,0.05);
+  position: relative;
+  overflow: hidden;
+}
+.panel::before {
+  content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+  background: var(--accent-grad); opacity: 0.5;
+}
+
+/* Today Grid */
+.today-grid {
+  display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px;
+}
+.hero-countdown {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.countdown-text { 
+  font-size: 56px; font-weight: 900; font-variant-numeric: tabular-nums; 
+  text-shadow: 0 0 30px rgba(0, 162, 255, 0.8);
+}
+.hero-buddy { width: 180px; height: 180px; filter: drop-shadow(0 0 20px rgba(0,255,170,0.4)); }
+.stats-row { display: flex; gap: 24px; margin-top: 24px; }
+.stat-box { flex: 1; text-align: center; background: rgba(0,0,0,0.4); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+.stat-val { font-size: 42px; font-weight: 900; margin: 10px 0 5px; color: var(--accent); text-shadow: 0 0 15px var(--accent); }
+.stat-lbl { font-size: 14px; color: var(--text-mut); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+
+/* Reminders List */
+.rem-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.btn-pri {
+  background: var(--accent-grad); color: #000; border: none;
+  padding: 12px 24px; border-radius: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+  transition: all 0.2s; box-shadow: 0 0 20px rgba(0, 255, 170, 0.4);
+}
+.btn-pri:hover { box-shadow: 0 0 30px rgba(0, 255, 170, 0.6); transform: translateY(-2px); }
+.btn-pri:active { transform: translateY(1px); box-shadow: 0 0 10px rgba(0, 255, 170, 0.4); }
+
+.btn-ghost {
+  background: rgba(0,255,170,0.05); color: var(--accent); border: 1px solid var(--accent);
+  padding: 10px 20px; border-radius: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
+  transition: all 0.2s; box-shadow: inset 0 0 10px rgba(0,255,170,0.1);
+}
+.btn-ghost:hover { background: rgba(0,255,170,0.15); box-shadow: 0 0 15px rgba(0,255,170,0.3), inset 0 0 10px rgba(0,255,170,0.2); }
+
+.rem-list { display: flex; flex-direction: column; gap: 16px; }
+.rem-card {
+  display: flex; align-items: center; gap: 20px;
+  background: rgba(0,0,0,0.4); border: 1px solid var(--panel-border);
+  padding: 20px 24px; border-radius: 12px; transition: all 0.2s;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+.rem-card:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(0,255,170,0.1), inset 0 0 20px rgba(0,0,0,0.5); transform: translateX(5px); }
+.rem-card.off { opacity: 0.4; filter: grayscale(1); border-color: transparent; box-shadow: none; }
+.rem-thumb { width: 56px; height: 84px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); }
+.rem-info { flex: 1; }
+.rem-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.5px; }
+.rem-meta { font-size: 14px; color: var(--text-mut); font-weight: 600; }
+.rem-actions { display: flex; gap: 12px; }
+
+/* Switch */
+.sw {
+  width: 50px; height: 26px; border-radius: 13px; background: rgba(255,255,255,0.1);
+  position: relative; cursor: pointer; transition: all 0.3s;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.sw::after {
+  content:''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px;
+  background: #fff; border-radius: 50%; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+.sw.on { background: var(--accent-grad); border-color: var(--accent); box-shadow: 0 0 15px rgba(0,255,170,0.4); }
+.sw.on::after { left: 27px; background: #fff; }
+
+/* Dialogs */
+dialog {
+  background: rgba(10, 12, 16, 0.95); color: var(--text); border: 1px solid var(--accent);
+  border-radius: 16px; padding: 0; box-shadow: 0 0 50px rgba(0,255,170,0.2), inset 0 0 30px rgba(0,255,170,0.05);
+  backdrop-filter: blur(20px);
+}
+dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
+.dlg-header { padding: 24px 30px; border-bottom: 1px solid rgba(0,255,170,0.2); background: rgba(0,255,170,0.05); }
+.dlg-header h2 { margin: 0; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+.dlg-body { padding: 30px; max-height: 70vh; overflow-y: auto; }
+.dlg-footer { padding: 20px 30px; border-top: 1px solid rgba(0,255,170,0.2); display: flex; justify-content: flex-end; gap: 15px; background: rgba(0,255,170,0.02); }
+
+.form-group { margin-bottom: 24px; }
+.form-group label { display: block; font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+.form-group input, .form-group select {
+  width: 100%; padding: 14px 18px; border-radius: 8px;
+  background: rgba(0,0,0,0.5); border: 1px solid rgba(0,255,170,0.2);
+  color: #fff; font: inherit; font-weight: 600; outline: none; box-sizing: border-box;
+  transition: all 0.2s;
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--accent); box-shadow: 0 0 15px rgba(0,255,170,0.3); background: rgba(0,255,170,0.05); }
+.row { display: flex; gap: 24px; }
+.row > .form-group { flex: 1; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+.chip {
+  background: rgba(0,255,170,0.1); border: 1px solid rgba(0,255,170,0.3); color: var(--accent);
+  padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px;
+}
+.chip:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px rgba(0,255,170,0.5); }
+
+/* Grid Picker */
+.grid-picker {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 12px;
+  max-height: 200px; overflow-y: auto; padding-right: 10px;
+}
+.grid-picker button {
+  background: rgba(0,0,0,0.4); border: 2px solid transparent; border-radius: 12px;
+  padding: 5px; height: 80px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; transition: all 0.2s;
+}
+.grid-picker button:hover { border-color: rgba(0,255,170,0.5); transform: scale(1.05); }
+.grid-picker button.sel { border-color: var(--accent); background: rgba(0,255,170,0.15); box-shadow: 0 0 15px rgba(0,255,170,0.3); }
+.fav-btn {
+  position: absolute; top: 5px; right: 5px; background: transparent; color: #fff;
+  border: none; font-size: 16px; opacity: 0.5; padding: 0; transition: all 0.2s;
+}
+.fav-btn:hover { transform: scale(1.2); }
+.fav-btn.active { color: #ff00aa; opacity: 1; text-shadow: 0 0 10px #ff00aa; }
+
+/* Studio View */
+#studioDlg[open] { width: 1000px; max-width: 95vw; display: flex; flex-direction: row; border-radius: 20px; overflow: hidden; border: 2px solid var(--accent); }
+.studio-view { flex: 2; background: radial-gradient(circle at center, #111, #000); position: relative; height: 650px; }
+.studio-panel { flex: 1; padding: 30px; background: rgba(5,5,5,0.95); border-left: 1px solid rgba(0,255,170,0.3); overflow-y: auto; height: 650px; box-sizing: border-box; }
+
+/* Settings / Stats */
+.settings-list { display: flex; flex-direction: column; gap: 20px; }
+.setting-item { display: flex; justify-content: space-between; align-items: center; padding: 24px; background: rgba(0,0,0,0.4); border-radius: 12px; border: 1px solid rgba(0,255,170,0.1); transition: all 0.2s; }
+.setting-item:hover { border-color: rgba(0,255,170,0.3); box-shadow: 0 0 20px rgba(0,255,170,0.1); }
+
+
+</style>
+</head>
+<body>
+<div class="aurora"></div>
+<div class="app">
+  <nav class="sidebar">
+    <div class="logo">Pulse Buddy</div>
+    <button class="active" data-tab="today">Today</button>
+    <button data-tab="reminders">Reminders</button>
+    <button data-tab="buddies">Buddies Gallery</button>
+    <button data-tab="stats">Stats & Progress</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+  
+  <main class="main">
+    
+    <!-- TODAY TAB -->
+    <div id="tab-today" class="tab-view active">
+      <h1>Good <span id="greeting">Morning</span>!</h1>
+      <div class="today-grid">
+        <div class="panel">
+          <h2>Up Next</h2>
+          <div class="hero-countdown">
+            <div>
+              <div style="font-size:18px; color:var(--text-mut); margin-bottom:10px" id="tNextLbl">No reminders scheduled</div>
+              <div class="countdown-text" id="tNextTime">--:--:--</div>
+            </div>
+            <div class="hero-buddy" id="tNextBuddy"></div>
+          </div>
+        </div>
+        <div class="panel" style="display:flex; flex-direction:column; justify-content:center; align-items:center;">
+          <h2 style="margin-bottom:0">Daily Progress</h2>
+          <div style="position:relative; width:120px; height:120px; margin-top:20px">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
+              <circle id="tRing" cx="60" cy="60" r="50" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="314.15" stroke-dashoffset="314.15" style="transition:stroke-dashoffset 1s ease"/>
+            </svg>
+            <div id="tPct" style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800;">0%</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="stats-row">
+        <div class="panel stat-box"><div class="stat-lbl">Completed Today</div><div class="stat-val" id="tComp">0</div></div>
+        <div class="panel stat-box"><div class="stat-lbl">Active Reminders</div><div class="stat-val" id="tAct">0</div></div>
+        <div class="panel stat-box"><div class="stat-lbl">Current Streak</div><div class="stat-val" id="tStrk">0</div></div>
+      </div>
+    </div>
+    
+    <!-- REMINDERS TAB -->
+    <div id="tab-reminders" class="tab-view">
+      <div class="rem-header">
+        <h1>Your Reminders</h1>
+        <div>
+          <button class="btn-ghost" id="pz">Pause 1h</button>
+          <button class="btn-pri" id="add">New Reminder</button>
+        </div>
+      </div>
+      <div class="rem-list" id="list"></div>
+    </div>
+    
+    <!-- BUDDIES TAB -->
+    <div id="tab-buddies" class="tab-view">
+      <div class="rem-header">
+        <h1>Buddies Gallery</h1>
+        <div style="display:flex; gap:15px">
+          <input type="text" id="galSearch" placeholder="Search buddies..." style="padding:10px 15px; border-radius:10px; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; outline:none;">
+          <button class="btn-pri" id="openStudioBtnMain">Buddy Studio</button>
+        </div>
+      </div>
+      <div class="chips" id="galTabs">
+        <button class="chip" data-tab="all" style="background:rgba(255,255,255,0.2)">All</button>
+        <button class="chip" data-tab="human">Humans</button>
+        <button class="chip" data-tab="animal">Animals</button>
+        <button class="chip" data-tab="vehicle">Vehicles</button>
+        <button class="chip" data-tab="fav">Favorites</button>
+      </div>
+      <div class="panel">
+        <div id="galContent" class="grid-picker" style="max-height:600px"></div>
+      </div>
+    </div>
+    
+    <!-- STATS TAB -->
+    <div id="tab-stats" class="tab-view">
+      <h1>Stats & Progress</h1>
+      <div class="panel" style="min-height:300px; display:flex; align-items:center; justify-content:center; color:var(--text-mut)">
+        Weekly chart visualizations go here. Keep up the good work!
+      </div>
+    </div>
+    
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings" class="tab-view">
+      <h1>Settings</h1>
+      <div class="settings-list panel">
+        <div class="setting-item">
+          <div>
+            <div style="font-weight:700; font-size:16px">Start with Windows</div>
+            <div style="color:var(--text-mut); font-size:13px; margin-top:4px">Automatically launch Pulse Buddy in the background on boot.</div>
+          </div>
+          <div class="sw" id="oAuto"></div>
+        </div>
+        <div class="setting-item">
+          <div>
+            <div style="font-weight:700; font-size:16px">Play Sounds</div>
+            <div style="color:var(--text-mut); font-size:13px; margin-top:4px">Play a notification chime when an entrance occurs.</div>
+          </div>
+          <div class="sw" id="oSnd"></div>
+        </div>
+        <div class="setting-item">
+          <div>
+            <div style="font-weight:700; font-size:16px">Snooze Duration (minutes)</div>
+            <div style="color:var(--text-mut); font-size:13px; margin-top:4px">How long to wait when you hit snooze.</div>
+          </div>
+          <div>
+            <input type="number" id="oSnz" min="1" style="width:80px; padding:10px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:8px;">
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </main>
+</div>
+
+<!-- REMINDER EDITOR DIALOG -->
+<dialog id="dlg" style="width:560px">
+  <div class="dlg-header"><h2 id="dT">New Reminder</h2></div>
+  <div class="dlg-body">
+    <label style="display:block; font-size:13px; font-weight:600; color:var(--text-mut); margin-bottom:8px">Quick start templates</label>
+    <div class="chips" id="tpl"></div>
+    
+    <div class="row">
+      <div class="form-group">
+        <label>Title</label>
+        <input id="fT" placeholder="Drink water">
+      </div>
+      <div class="form-group">
+        <label>Message (Typing effect)</label>
+        <input id="fM" placeholder="Stay hydrated!">
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="form-group">
+        <label>Button Text</label>
+        <input id="fY" placeholder="Done">
+      </div>
+      <div class="form-group">
+        <label>Limit (How many times?)</label>
+        <input id="fG" type="number" min="1" value="8">
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="form-group">
+        <label>Repeat Mode</label>
+        <select id="fMode">
+          <option value="interval">Interval (Every N mins)</option>
+          <option value="daily">Daily at specific times</option>
+          <option value="once">Once</option>
+        </select>
+      </div>
+      <div class="form-group" id="gI">
+        <label>Interval (minutes)</label>
+        <input id="fEv" type="number" min="1" value="60">
+      </div>
+      <div class="form-group">
+        <label>Entrance Animation</label>
+        <select id="fEnt">
+          <option value="walk">Walk in</option>
+          <option value="fly">Fly across</option>
+          <option value="drive">Drive in</option>
+          <option value="parachute">Parachute</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="form-group" id="gD" hidden>
+      <label>Times (24h format, comma separated)</label>
+      <input id="fTi" value="09:00, 21:00">
+    </div>
+    <div class="form-group" id="gO" hidden>
+      <label>Date and time</label>
+      <input id="fAt" type="datetime-local">
+    </div>
+    
+    <div class="row" id="gH">
+      <div class="form-group">
+        <label>Active From</label>
+        <input id="fHs" type="time" value="09:00">
+      </div>
+      <div class="form-group">
+        <label>Active Until</label>
+        <input id="fHe" type="time" value="22:00">
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+        <label style="margin:0">Choose Buddy</label>
+        <button class="btn-ghost" id="openStudioBtn" style="padding:6px 12px; font-size:12px">Buddy Studio</button>
+      </div>
+      <div class="grid-picker" id="bg" style="max-height:160px"></div>
+    </div>
+  </div>
+  <div class="dlg-footer">
+    <button class="btn-ghost" id="cx">Cancel</button>
+    <button class="btn-ghost" id="ts">Preview</button>
+    <button class="btn-pri" id="sv">Save Reminder</button>
+  </div>
+</dialog>
+
+<!-- BUDDY STUDIO DIALOG -->
+<dialog id="studioDlg">
+  <div class="studio-view" id="studioView"></div>
+  <div class="studio-panel">
+    <h2 style="margin-top:0">Buddy Studio</h2>
+    <div class="form-group">
+      <label>Species</label>
+      <select id="sSpecies">
+        <option value="human">Human</option>
+        <option value="animal">Animal</option>
+        <option value="vehicle">Vehicle</option>
+      </select>
+    </div>
+    
+    <div id="sHumanOpts">
+      <div class="form-group"><label>Skin Tone</label><select id="sSkin"></select></div>
+      <div class="form-group"><label>Hair Style</label><select id="sHairType"></select></div>
+      <div class="form-group"><label>Hair Color</label><select id="sHair"></select></div>
+      <div class="form-group"><label>Outfit Color</label><select id="sShirt"></select></div>
+      <div class="form-group"><label>Pants Color</label><select id="sPants"></select></div>
+    </div>
+    
+    <div id="sAnimalOpts" hidden>
+      <div class="form-group"><label>Fur Color</label><select id="sAnimalColor"></select></div>
+    </div>
+    
+    <div id="sVehicleOpts" hidden>
+      <div class="form-group"><label>Vehicle Type</label>
+        <select id="sVehicleType">
+          <option value="0">Car</option><option value="1">Aeroplane</option><option value="2">Helicopter</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Paint Color</label><select id="sVehicleColor"></select></div>
+    </div>
+    
+    <div style="margin-top:40px; display:flex; flex-direction:column; gap:10px">
+      <button class="btn-ghost" id="sRnd">Surprise me!</button>
+      <label class="btn-ghost" style="text-align:center; display:block">
+        Upload Custom Image
+        <input type="file" id="up" accept="image/*" hidden>
+      </label>
+      <button class="btn-pri" id="sSave">Use This Buddy</button>
+      <button class="btn-ghost" style="border:none" onclick="studioDlg.close()">Cancel</button>
+    </div>
+  </div>
+</dialog>
+<script src="core.js"></script>
+<script src="bundle.js"></script>
+<script>
+const viewer = window.Buddy3D.default;
+const Configs = window.Buddy3D.Configs;
+const THREE = window.Buddy3D.THREE;
+
+window.Sprites = {
+    draw: (container, id, state) => viewer.addInstance(container, id, state),
+    update: (inst, state) => viewer.setInstanceState(inst, state),
+    updateModel: (inst, config) => viewer.updateModel(inst, config),
+    remove: (inst) => viewer.removeInstance(inst)
+};
+
+// Crazy 3D Background
+const bgCanvas = document.createElement('canvas');
+bgCanvas.style.position = 'fixed';
+bgCanvas.style.top = '0'; bgCanvas.style.left = '0'; bgCanvas.style.zIndex = '0'; bgCanvas.style.pointerEvents = 'none';
+document.body.prepend(bgCanvas);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({canvas: bgCanvas, alpha: true, antialias: true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+const geom = new THREE.BufferGeometry();
+const pts = [];
+for(let i=0; i<1000; i++) pts.push((Math.random()-0.5)*20, (Math.random()-0.5)*20, (Math.random()-0.5)*20);
+geom.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+const mat = new THREE.PointsMaterial({color: 0x43e97b, size: 0.05, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending});
+const stars = new THREE.Points(geom, mat);
+scene.add(stars);
+camera.position.z = 5;
+let mouseX = 0, mouseY = 0;
+document.addEventListener('mousemove', e => {
+  mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+  mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+function animBG() {
+  requestAnimationFrame(animBG);
+  stars.rotation.x += 0.001; stars.rotation.y += 0.002;
+  camera.position.x += (mouseX * 2 - camera.position.x) * 0.05;
+  camera.position.y += (mouseY * 2 - camera.position.y) * 0.05;
+  camera.lookAt(scene.position);
+  renderer.render(scene, camera);
+}
+animBG();
+
+// 3D Tilt Effect for panels
+function addTilt(el) {
+  el.style.transformStyle = 'preserve-3d';
+  el.style.transition = 'transform 0.1s';
+  el.addEventListener('mousemove', e => {
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+    const xc = rect.width/2; const yc = rect.height/2;
+    const dx = x - xc; const dy = y - yc;
+    el.style.transform = \`perspective(1000px) rotateY(\${dx/20}deg) rotateX(\${-dy/20}deg) scale3d(1.02,1.02,1.02)\`;
+  });
+  el.addEventListener('mouseleave', () => { el.style.transform = 'perspective(1000px) rotateY(0deg) rotateX(0deg) scale3d(1,1,1)'; });
+}
+document.querySelectorAll('.panel, .rem-card').forEach(addTilt);
+const observer = new MutationObserver(() => document.querySelectorAll('.panel:not(.tilted), .rem-card:not(.tilted)').forEach(e => { e.classList.add('tilted'); addTilt(e); }));
+observer.observe(document.body, {childList: true, subtree: true});
+
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s), uid=()=>Math.random().toString(36).slice(2,9);
+let S, ed=null, buddy=0;
+let favs = new Set();
+let customBuddies = [
+    'build/realistic/man.jpg',
+    'build/realistic/woman.jpg',
+    'build/realistic/car.jpg',
+    'build/realistic/dog.jpg'
+];
+let nextBuddyInst = null;
+
+const TPL=[['Drink water','Time to drink water to keep your skin glowing!','Yes, I drank','interval',45,8,'#59c3ff',3],['Stretch','Stand up and stretch your back!','Done stretching','interval',60,6,'#ffb547',12],['Rest your eyes','Look 20 feet away for 20 seconds!','Done','interval',20,10,'#5ee0b0',21],['Take medicine','Time for your medicine!','Taken','daily','09:00, 21:00',2,'#ff7a7a',30],['Walk','Take a short walk, you deserve it!','Yes, walked','interval',90,4,'#b9a6ff',41]];
+const save=async()=>{await api.save(S);draw()};
+function fmt(ms){const s=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+'h '+m+'m':m+'m '+s%60+'s'}
+
+// Tab Navigation
+$$('.sidebar button[data-tab]').forEach(b => {
+    b.onclick = (e) => {
+        $$('.sidebar button').forEach(x => x.classList.remove('active'));
+        $$('.tab-view').forEach(x => x.classList.remove('active'));
+        e.target.classList.add('active');
+        $('#tab-' + e.target.dataset.tab).classList.add('active');
+        if(e.target.dataset.tab === 'buddies') renderGallery();
+    }
+});
+
+// Greeting
+const hr = new Date().getHours();
+$('#greeting').textContent = hr < 12 ? 'Morning' : hr < 18 ? 'Afternoon' : 'Evening';
+
+function thumb(r,k){
+ const div=document.createElement('div');
+ div.style.width=k*16+'px'; div.style.height=k*24+'px';
+ if(typeof r.buddy==='string'){
+  const i=new Image();i.style.width='100%';i.style.height='100%';i.style.objectFit='contain';
+  i.src=r.buddy;div.append(i);
+ }else{
+  const res=window.Sprites.draw(div,r.buddy,'idle');
+  if(res) {
+      window.activeThumbs.push(res);
+      return res.container; 
+  }
+ }
+ return div;
+}
+
+function when(r){return r.mode==='interval'?'Every '+r.every+' min':r.mode==='daily'?'Daily '+r.times.join(', '):'Once'}
+function streak(){const d=new Set(S.reminders.flatMap(r=>(r.log||[]).map(t=>new Date(t).toDateString())));let n=0,x=new Date();if(!d.has(x.toDateString()))x.setDate(x.getDate()-1);while(d.has(x.toDateString())){n++;x.setDate(x.getDate()-1)}return n}
+
+function updateToday() {
+    let comps = 0, acts = 0;
+    S.reminders.forEach(r => { comps += Core.today(r); if(r.active) acts++; });
+    $('#tComp').textContent = comps;
+    $('#tAct').textContent = acts;
+    $('#tStrk').textContent = streak();
+    
+    // Overall progress
+    let goal = S.reminders.reduce((a,r) => a + (r.goal||1), 0) || 1;
+    let pct = Math.min(100, Math.round((comps/goal)*100));
+    $('#tPct').textContent = pct + '%';
+    $('#tRing').style.strokeDashoffset = 314.15 * (1 - pct/100);
+
+    // Next reminder countdown
+    const activeRems = S.reminders.filter(r => r.active && r.next);
+    activeRems.sort((a,b) => a.next - b.next);
+    const nextR = activeRems[0];
+    
+    if(nextR) {
+        $('#tNextLbl').textContent = nextR.title;
+        const diff = Math.max(0, nextR.next - Date.now());
+        const s = Math.ceil(diff/1000), h = Math.floor(s/3600), m = Math.floor(s%3600/60), sc = s%60;
+        $('#tNextTime').textContent = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;
+        
+        if(!nextBuddyInst || nextBuddyInst.id_or_config !== nextR.buddy) {
+            $('#tNextBuddy').innerHTML = '';
+            nextBuddyInst = window.Sprites.draw($('#tNextBuddy'), nextR.buddy, 'idle');
+            nextBuddyInst.id_or_config = nextR.buddy;
+        }
+    } else {
+        $('#tNextLbl').textContent = 'No active reminders';
+        $('#tNextTime').textContent = '--:--:--';
+        $('#tNextBuddy').innerHTML = '';
+        nextBuddyInst = null;
+    }
+}
+
+window.activeThumbs = window.activeThumbs || [];
+function draw(){
+ if(window.activeThumbs) {
+     window.activeThumbs.forEach(inst => window.Sprites.remove(inst));
+     window.activeThumbs = [];
+ }
+ const L=$('#list');L.innerHTML='';
+ if(!S.reminders.length) L.innerHTML='<div class="panel" style="text-align:center; color:var(--text-mut)">No reminders yet. Create one to get started!</div>';
+ 
+ S.reminders.forEach(r=>{
+  const d=document.createElement('div');
+  d.className='rem-card'+(r.active?'':' off');
+  
+  const th = document.createElement('div'); th.className='rem-thumb'; th.append(thumb(r,3));
+  d.append(th);
+  
+  const i=document.createElement('div');i.className='rem-info';
+  i.innerHTML=`<div class="rem-title">${r.title.replace(/</g,'&lt;')}</div><div class="rem-meta">${when(r)} • ${Core.today(r)}/${r.goal||1} today${r.active&&r.next?' • Next in '+fmt(r.next-Date.now()):''}</div>`;
+  d.append(i);
+  
+  const acts=document.createElement('div'); acts.className='rem-actions';
+  const mk=(t,f)=>{const b=document.createElement('button');b.className='btn-ghost';b.textContent=t;b.onclick=f;acts.append(b);return b};
+  mk('Test',()=>api.test(r)); mk('Edit',()=>open(r)); mk('Del',async()=>{
+      await api.deleteReminder(r.id);
+      S.reminders=S.reminders.filter(x=>x!==r);
+      draw();
+  });
+  
+  const sw=document.createElement('div'); sw.className='sw'+(r.active?' on':'');
+  sw.onclick=async()=>{
+      r.active=!r.active;
+      if(r.active)r.next=Core.next(r,Date.now());
+      await api.updateReminder(r.id, { active: r.active, next: r.next });
+      draw();
+  };
+  acts.append(sw);
+  
+  d.append(acts);
+  L.append(d);
+ });
+ 
+ // Settings update
+ $('#oAuto').className = 'sw' + (S.settings.autostart ? ' on' : '');
+ $('#oSnd').className = 'sw' + (S.settings.sound ? ' on' : '');
+ $('#oSnz').value = S.settings.snooze || 10;
+ 
+ updateToday();
+}
+
+function bindSw(id, key) {
+    $('#'+id).onclick = () => {
+        S.settings[key] = !S.settings[key];
+        $('#'+id).className = 'sw' + (S.settings[key] ? ' on' : '');
+        api.setSetting(key, S.settings[key]);
+    };
+}
+
+$('#oSnz').onchange = (e) => {
+    S.settings.snooze = +e.target.value || 10;
+    api.setSetting('snooze', S.settings.snooze);
+};
+
+function pick(b){
+  buddy=b;
+  [...$$('#bg button')].forEach(x=>{
+      if(x.classList.contains('fav-btn')) return;
+      x.classList.toggle('sel',x.dataset.b==String(JSON.stringify(b))||x.dataset.b==String(b));
+  });
+}
+
+// Build dialog picker
+for(let i=0;i<60;i++){const b=document.createElement('button');b.dataset.b=i;b.append(thumb({buddy:i},2.5));b.onclick=()=>pick(i);$('#bg').append(b)}
+
+$('#tpl').innerHTML=TPL.map((t,i)=>`<button class="chip" data-i="${i}">${t[0]}</button>`).join('');
+$('#tpl').onclick=e=>{const t=TPL[e.target.dataset.i];if(!t)return;$('#fT').value=t[0];$('#fM').value=t[1];$('#fY').value=t[2];$('#fMode').value=t[3];(t[3]==='interval'?$('#fEv'):$('#fTi')).value=t[4];$('#fG').value=t[5];$('#fEnt').value='walk';pick(t[7]);mode()};
+function mode(){const m=$('#fMode').value;$('#gI').hidden=m!=='interval';$('#gD').hidden=m!=='daily';$('#gO').hidden=m!=='once';$('#gH').hidden=m!=='interval'}$('#fMode').onchange=mode;
+function open(r){ed=r;$('#dT').textContent=r?'Edit Reminder':'New Reminder';$('#fT').value=r?r.title:'';$('#fM').value=r?r.message:'';$('#fY').value=r?r.yes:'Done';$('#fG').value=r?r.goal:1;$('#fMode').value=r?r.mode:'interval';$('#fEv').value=r?r.every||60:60;$('#fTi').value=r&&r.times?r.times.join(', '):'09:00, 21:00';$('#fHs').value=r&&r.hs||'09:00';$('#fHe').value=r&&r.he||'22:00';$('#fEnt').value=r&&r.ent?r.ent:'walk';pick(r?r.buddy:0);mode();$('#dlg').showModal()}
+$('#add').onclick=()=>open();$('#cx').onclick=()=>$('#dlg').close();
+
+// Buddy Studio & Gallery
+function getBuddyTypeStr(id) {
+    if(typeof id === 'object') return id.species || 'custom';
+    if(typeof id === 'string') return 'custom';
+    if(id < 24) return 'human';
+    if(id < 40) return 'animal';
+    return 'vehicle';
+}
+
+function renderGallery(filter = 'all', search = '') {
+    const list = [];
+    for(let i=0;i<60;i++) list.push(i);
+    customBuddies.forEach(c => list.push(c));
+    
+    $('#galContent').innerHTML = '';
+    const q = search.toLowerCase();
+    
+    list.forEach(id => {
+        const type = getBuddyTypeStr(id);
+        const strId = typeof id === 'object' ? JSON.stringify(id) : String(id);
+        const isFav = favs.has(strId);
+        
+        if(filter !== 'all' && filter !== 'fav' && filter !== type) return;
+        if(filter === 'fav' && !isFav) return;
+        
+        const b = document.createElement('button');
+        b.dataset.b = strId;
+        b.append(thumb({buddy:id}, 3));
+        
+        const f = document.createElement('button');
+        f.className = 'fav-btn' + (isFav?' active':'');
+        f.innerHTML = isFav ? '★' : '☆';
+        f.onclick = (e) => { e.stopPropagation(); if(favs.has(strId)) favs.delete(strId); else favs.add(strId); renderGallery(filter, search); };
+        b.append(f);
+        
+        $('#galContent').append(b);
+    });
+}
+
+$$('#galTabs button').forEach(b => {
+    b.onclick = (e) => {
+        $$('#galTabs button').forEach(x=>x.style.background='rgba(255,255,255,0.1)');
+        e.target.style.background='rgba(255,255,255,0.2)';
+        renderGallery(e.target.dataset.tab, $('#galSearch').value);
+    }
+});
+$('#galSearch').oninput = (e) => {
+    const activeTabBtn = [...$$('#galTabs button')].find(b=>b.style.background==='rgba(255, 255, 255, 0.2)');
+    const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : 'all';
+    renderGallery(activeTab, e.target.value);
+};
+
+let studioInst = null;
+let currentConfig = { species:'human', skin:0, hairType:0, hair:0, shirt:0, pants:0, buildType:1, heightType:1 };
+
+function initStudioOpts() {
+    const pop = (id, arr, lbl) => {
+        const el = $('#'+id); el.innerHTML = '';
+        arr.forEach((v,i) => {
+            const opt = document.createElement('option');
+            opt.value = i; opt.textContent = lbl + ' ' + (i+1);
+            el.appendChild(opt);
+        });
+    };
+    pop('sSkin', Configs.skinTones, 'Tone');
+    pop('sHairType', Array(12).fill(0), 'Style');
+    pop('sHair', Configs.hairColors, 'Color');
+    pop('sShirt', Configs.shirtColors, 'Color');
+    pop('sPants', Configs.pantsColors, 'Color');
+    pop('sAnimalColor', Configs.animalColors, 'Color');
+    pop('sVehicleColor', Configs.vehicleColors, 'Color');
+}
+
+function updateStudioModel() {
+    if(!studioInst) {
+        studioInst = window.Sprites.draw($('#studioView'), currentConfig, 'studio');
+    } else {
+        window.Sprites.updateModel(studioInst, currentConfig);
+    }
+}
+
+const openStudio = () => {
+    $('#studioDlg').showModal();
+    if(!studioInst) initStudioOpts();
+    updateStudioModel();
+};
+$('#openStudioBtn').onclick = openStudio;
+$('#openStudioBtnMain').onclick = openStudio;
+
+$('#sSpecies').onchange = (e) => {
+    currentConfig.species = e.target.value;
+    $('#sHumanOpts').hidden = currentConfig.species !== 'human';
+    $('#sAnimalOpts').hidden = currentConfig.species !== 'animal';
+    $('#sVehicleOpts').hidden = currentConfig.species !== 'vehicle';
+    if(currentConfig.species === 'animal') currentConfig.color = 0;
+    if(currentConfig.species === 'vehicle') { currentConfig.type = 0; currentConfig.color = 0; }
+    updateStudioModel();
+};
+
+['sSkin','sHairType','sHair','sShirt','sPants','sAnimalColor','sVehicleType','sVehicleColor'].forEach(id => {
+    $('#'+id).onchange = (e) => {
+        const val = parseInt(e.target.value);
+        if(id==='sSkin') currentConfig.skin = val;
+        if(id==='sHairType') currentConfig.hairType = val;
+        if(id==='sHair') currentConfig.hair = val;
+        if(id==='sShirt') currentConfig.shirt = val;
+        if(id==='sPants') currentConfig.pants = val;
+        if(id==='sAnimalColor') currentConfig.color = val;
+        if(id==='sVehicleType') currentConfig.type = val;
+        if(id==='sVehicleColor') currentConfig.color = val;
+        updateStudioModel();
+    };
+});
+
+$('#sRnd').onclick = () => {
+    const r = (m) => Math.floor(Math.random()*m);
+    if(currentConfig.species === 'human') {
+        currentConfig.skin = r(Configs.skinTones.length);
+        currentConfig.hairType = r(12);
+        currentConfig.hair = r(Configs.hairColors.length);
+        currentConfig.shirt = r(Configs.shirtColors.length);
+        currentConfig.pants = r(Configs.pantsColors.length);
+        $('#sSkin').value = currentConfig.skin; $('#sHairType').value = currentConfig.hairType; $('#sHair').value = currentConfig.hair; $('#sShirt').value = currentConfig.shirt; $('#sPants').value = currentConfig.pants;
+    } else if(currentConfig.species === 'animal') {
+        currentConfig.color = r(Configs.animalColors.length); $('#sAnimalColor').value = currentConfig.color;
+    } else {
+        currentConfig.type = r(3); currentConfig.color = r(Configs.vehicleColors.length);
+        $('#sVehicleType').value = currentConfig.type; $('#sVehicleColor').value = currentConfig.color;
+    }
+    updateStudioModel();
+};
+
+const addToPicker = (data) => {
+    customBuddies.push(data);
+    const btn = document.createElement('button');
+    btn.dataset.b = JSON.stringify(data);
+    btn.append(thumb({buddy:data}, 2.5));
+    btn.onclick = () => pick(data);
+    $('#bg').prepend(btn);
+    pick(data);
+    $('#studioDlg').close();
+    renderGallery();
+};
+
+$('#sSave').onclick = () => addToPicker(JSON.parse(JSON.stringify(currentConfig)));
+
+$('#up').onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const fr=new FileReader();
+    fr.onload=()=>{
+        const data = fr.result;
+        addToPicker(data);
+    };
+    fr.readAsDataURL(f);
+};
+
+function build(){const t=$('#fT').value.trim();if(!t){$('#fT').focus();return null}const m=$('#fMode').value,r=ed||{id:uid(),log:[]};
+ Object.assign(r,{title:t,message:$('#fM').value.trim()||t,yes:$('#fY').value||'Done',goal:+$('#fG').value||1,mode:m,buddy,active:true,ent:$('#fEnt').value});
+ if(m==='interval'){r.every=Math.max(1,+$('#fEv').value||60);r.hs=$('#fHs').value;r.he=$('#fHe').value}
+ if(m==='daily'){r.times=$('#fTi').value.split(',').map(s=>s.trim()).filter(s=>/^\d{1,2}:\d{2}$/.test(s));if(!r.times.length){alert('Use times like 09:00, 21:00');return null}}
+ if(m==='once'){const x=new Date($('#fAt').value).getTime();if(!x||x<Date.now()){alert('Pick a future date and time');return null}r.next=x}else r.next=Core.next(r,Date.now());return r}
+$('#sv').onclick=async()=>{
+    const r=build();if(!r)return;
+    if(!ed) {
+        r.id = await api.createReminder(r);
+        S.reminders.push(r);
+    } else {
+        await api.updateReminder(r.id, r);
+        Object.assign(ed, r);
+    }
+    $('#dlg').close();
+    draw();
+};
+$('#ts').onclick=()=>{const r=build();if(r)api.test({...r,id:'preview'})};
+$('#pz').onclick=()=>{api.pause(60);alert('Paused for 1 hour. Use the tray menu to resume.')};
+
+(async()=>{
+    S=await api.get();
+    if(S.settings.autostart === undefined) S.settings.autostart = true;
+    if(S.settings.sound === undefined) S.settings.sound = true;
+    
+    bindSw('oAuto', 'autostart');
+    bindSw('oSnd', 'sound');
+    
+    $('#dlg').addEventListener('close', () => {
+        if(nextBuddyInst) {
+            window.Sprites.remove(nextBuddyInst);
+            nextBuddyInst = null;
+        }
+    });
+    
+    $('#studioDlg').addEventListener('close', () => {
+        if(studioInst) {
+            window.Sprites.remove(studioInst);
+            studioInst = null;
+        }
+    });
+    
+    draw();
+    api.onRefresh(async()=>{S=await api.get();draw()});
+    setInterval(updateToday,1000);
+})();
+</script></body></html>
