@@ -239,6 +239,28 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
 .setting-item:hover { border-color: rgba(0,255,170,0.3); box-shadow: 0 0 20px rgba(0,255,170,0.1); }
 
 
+/* Responsive Mobile Layout */
+@media (max-width: 768px) {
+  .main-container {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .form-row {
+    flex-direction: column;
+  }
+  .nav-tabs {
+    flex-wrap: wrap;
+  }
+  #studioDlg[open] { flex-direction: column; height: 90vh; }
+  .studio-view { height: 40vh; }
+  .studio-panel { height: 50vh; }
+}
 </style>
 </head>
 <body>
