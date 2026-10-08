@@ -526,13 +526,23 @@ class BuddyViewer {
         let model;
         
           let isObj2 = typeof config === 'object';
-          let cat2 = isObj2 ? config.species : null;
-          let idNum2 = isObj2 ? null : config;
-          if (cat2 === 'human' || (idNum2 !== null && idNum2 < 18)) model = HumanGenerator.generate(config);
-          else if (cat2 === 'animal' || (idNum2 !== null && idNum2 < 42)) model = AnimalGenerator.generate(config);
-          else if (cat2 === 'vehicle' || (idNum2 !== null && idNum2 < 54)) model = VehicleGenerator.generate(config);
-          else if (cat2 === 'robot' || (idNum2 !== null && idNum2 < 64)) model = RobotGenerator.generate(config);
-          else model = FantasyGenerator.generate(config);
+            let cat2 = isObj2 ? (config.species || config.category) : null;
+            let idNum2 = isObj2 ? null : config;
+            if (typeof config === 'string' || (isObj2 && (config.isPhoto || cat2 === 'custom'))) {
+                model = new THREE.Group();
+                model.userData = { isPhoto: true };
+                const url = typeof config === 'string' ? config : (config.asset || config.id);
+                const tex = new THREE.TextureLoader().load(url);
+                const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+                const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
+                plane.position.y = 0.5;
+                model.add(plane);
+            }
+            else if (cat2 === 'human' || (idNum2 !== null && idNum2 < 18)) model = HumanGenerator.generate(config);
+            else if (cat2 === 'animal' || (idNum2 !== null && idNum2 < 42)) model = AnimalGenerator.generate(config);
+            else if (cat2 === 'vehicle' || (idNum2 !== null && idNum2 < 54)) model = VehicleGenerator.generate(config);
+            else if (cat2 === 'robot' || (idNum2 !== null && idNum2 < 64)) model = RobotGenerator.generate(config);
+            else model = FantasyGenerator.generate(config);
 
         this.scene.add(model);
         inst.model = model;
@@ -594,6 +604,7 @@ class BuddyViewer {
     }
 }
 
-const viewer = new BuddyViewer();
-if (typeof window !== 'undefined') window.Sprites = viewer;
-export default viewer;
+let viewer = null;
+export function createViewer() { if(!viewer) { viewer = new BuddyViewer(); } return viewer; }
+if (typeof window !== 'undefined') window.createViewer = createViewer;
+export { viewer };

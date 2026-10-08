@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 /* 🚀 CRAZY NEON CYBERPUNK UI 🚀 */
 :root {
@@ -240,27 +241,100 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
 
 
 /* Responsive Mobile Layout */
+/* Mobile Safe Area Variables */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Touch Targets */
+button, select, input[type="text"], input[type="time"], input[type="number"], .sw {
+  min-height: 44px;
+  min-width: 44px;
+}
+.sidebar button {
+  min-height: 44px;
+}
+.item-card {
+  min-height: 44px;
+}
+
+/* Responsive Mobile Layout */
 @media (max-width: 768px) {
-  .main-container {
-    grid-template-columns: 1fr;
-    padding: 16px;
-    gap: 16px;
-  }
-  .header {
+  .app {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    width: 100%;
+    min-width: 0;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: calc(12px + var(--safe-top)) var(--safe-right) 12px var(--safe-left);
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--panel-border);
+    align-items: center;
+  }
+  .sidebar .logo {
+    font-size: 1.2rem;
+    margin-bottom: 0;
+    margin-right: 16px;
+    white-space: nowrap;
+  }
+  .sidebar button {
+    margin-bottom: 0;
+    margin-right: 8px;
+    padding: 8px 16px;
+    white-space: nowrap;
+  }
+  .main {
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+    padding: 16px var(--safe-right) calc(16px + var(--safe-bottom)) var(--safe-left);
+    overflow-x: hidden;
+  }
+  .today-grid {
+    grid-template-columns: 1fr;
+  }
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 12px;
   }
-  .form-row {
+  .rem-header, .row {
     flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
-  .nav-tabs {
+  .rem-actions {
     flex-wrap: wrap;
   }
-  #studioDlg[open] { flex-direction: column; height: 90vh; }
+  .search-bar {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  /* Dialogs */
+  dialog {
+    width: min(100% - 24px, 1000px);
+    max-height: 90dvh;
+    overflow-y: auto;
+    padding-bottom: calc(24px + var(--safe-bottom));
+  }
+  #studioDlg[open] {
+    flex-direction: column;
+    height: 90dvh;
+  }
   .studio-view { height: 40vh; }
-  .studio-panel { height: 50vh; }
+  .studio-panel { height: 50vh; overflow-y: auto; }
 }
+
 
 /* Light Mode overrides */
 @media (prefers-color-scheme: light) {
@@ -371,7 +445,7 @@ dialog::backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); }
         <button class="chip" data-tab="human">Humans</button>
         <button class="chip" data-tab="animal">Animals</button>
         <button class="chip" data-tab="vehicle">Vehicles</button>
-        <button class="chip" data-tab="fav">Favorites</button>
+        <button class="chip" data-tab="robot">Robots</button>`n        <button class="chip" data-tab="fantasy">Fantasy</button>`n        <button class="chip" data-tab="fav">Favorites</button>
       </div>
       <div class="panel">
         <div id="galContent" class="grid-picker" style="max-height:400px; margin-bottom:20px;"></div>
@@ -596,16 +670,11 @@ const BuddyCatalog = window.BuddyCatalog || [];
 const EmotionEngine = window.EmotionEngine || { react: () => {} };
 
 
-const viewer = window.Buddy3D.default;
-const Configs = window.Buddy3D.Configs;
-const THREE = window.Buddy3D.THREE;
+let viewer = null;
+let Configs = null;
+let THREE = null;
 
-window.Sprites = {
-    draw: (container, id, state) => viewer.addInstance(container, id, state),
-    update: (inst, state) => viewer.setInstanceState(inst, state),
-    updateModel: (inst, config) => viewer.updateModel(inst, config),
-    remove: (inst) => viewer.removeInstance(inst)
-};
+
 
 // Crazy 3D Background
 const bgCanvas = document.createElement('canvas');
@@ -673,11 +742,14 @@ function fmt(ms){const s=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(s/3600),m=M
 
 // Tab Navigation
 $$('.sidebar button[data-tab]').forEach(b => {
-    b.onclick = (e) => {
-        $$('.sidebar button').forEach(x => x.classList.remove('active'));
-        $$('.tab-view').forEach(x => x.classList.remove('active'));
-        e.target.classList.add('active');
-        $('#tab-' + e.target.dataset.tab).classList.add('active');
+    b.addEventListener('click', (e) => {
+          const target = e.currentTarget;
+          $('.sidebar button').forEach(x => x.classList.remove('active'));
+          $('.tab-view').forEach(x => x.classList.remove('active'));
+          target.classList.add('active');
+          $('#tab-' + target.dataset.tab).classList.add('active');
+          if(target.dataset.tab === 'buddies') renderGallery();
+      }).classList.add('active');
         if(e.target.dataset.tab === 'buddies') renderGallery();
     }
 });
@@ -896,17 +968,20 @@ $('#add').onclick=()=>open();$('#cx').onclick=()=>$('#dlg').close();
 function getBuddyTypeStr(id) {
     if(typeof id === 'object') return id.species || 'custom';
     if(typeof id === 'string') return 'custom';
-    if(id < 24) return 'human';
-    if(id < 40) return 'animal';
-    return 'vehicle';
+    if(id < 18) return 'human';
+    if(id < 42) return 'animal';
+    if(id < 54) return 'vehicle';
+    if(id < 64) return 'robot';
+    return 'fantasy';
 }
 
 function renderGallery(filter = 'all', search = '') {
     const list = [];
-    window.BuddyCatalog.forEach(c => list.push(c.id));
-    customBuddies.forEach(c => list.push(c));
+    // Authoritative catalog mapping
     if (window.BuddyCatalog) window.BuddyCatalog.forEach(c => list.push(c.id));
-    if (S && S.buddies) S.buddies.forEach(c => list.push(c));
+    // Add custom buddies only once
+    const custom = (S && S.buddies) ? S.buddies : [];
+    custom.forEach(c => list.push(c));
     
     $('#galContent').innerHTML = '';
     const q = search.toLowerCase();
@@ -938,12 +1013,13 @@ function renderGallery(filter = 'all', search = '') {
     });
 }
 
-$$('#galTabs button').forEach(b => {
-    b.onclick = (e) => {
-        $$('#galTabs button').forEach(x=>x.style.background='rgba(255,255,255,0.1)');
-        e.target.style.background='rgba(255,255,255,0.2)';
-        renderGallery(e.target.dataset.tab, $('#galSearch').value);
-    }
+$('#galTabs button').forEach(b => {
+      b.addEventListener('click', (e) => {
+          const target = e.currentTarget;
+          $('#galTabs button').forEach(x=>x.style.background='rgba(255,255,255,0.1)');
+          target.style.background='rgba(255,255,255,0.2)';
+          renderGallery(target.dataset.tab, $('#galSearch').value);
+      });
 });
 $('#galSearch').oninput = (e) => {
     const activeTabBtn = [...$$('#galTabs button')].find(b=>b.style.background==='rgba(255, 255, 255, 0.2)');
@@ -1000,8 +1076,8 @@ $('#sSpecies').onchange = (e) => {
 
 if ($('#studioEmotions')) {
     $$('#studioEmotions .chip').forEach(btn => {
-        btn.onclick = (e) => {
-            const emotion = e.target.dataset.emotion;
+        btn.addEventListener('click', (e) => {
+            const emotion = e.currentTarget.dataset.emotion;
             if (studioInst) {
                 if (window.Sprites && window.Sprites.update) {
                     window.Sprites.update(studioInst, emotion);
@@ -1099,7 +1175,36 @@ $('#sv').onclick=async()=>{
 $('#ts').onclick=()=>{const r=build();if(r)api.test({...r,id:'preview'})};
 $('#pz').onclick=()=>{api.pause(60);alert('Paused for 1 hour. Use the tray menu to resume.')};
 
-(async()=>{
+function bootstrap() {
+    try {
+        $('dialog button:not([type="submit"])').forEach(b => {
+            if(!b.hasAttribute('type')) b.setAttribute('type', 'button');
+        });
+        
+        try {
+            if (window.Buddy3D && window.Buddy3D.createViewer) {
+                viewer = window.Buddy3D.createViewer();
+                Configs = window.Buddy3D.Configs;
+                THREE = window.Buddy3D.THREE;
+                window.Sprites = {
+                    draw: (container, id, state) => viewer.addInstance(container, id, state),
+                    update: (inst, state) => viewer.setInstanceState(inst, state),
+                    updateModel: (inst, config) => viewer.updateModel(inst, config),
+                    remove: (inst) => viewer.removeInstance(inst)
+                };
+                init3DBackground();
+            }
+        } catch(e) {
+            console.error("WebGL initialization failed:", e);
+            const banner = document.createElement('div');
+            banner.textContent = "3D rendering unavailable � 2D preview mode enabled.";
+            banner.style.padding = '8px'; banner.style.background = 'rgba(255,100,100,0.2)';
+            banner.style.textAlign = 'center';
+            document.body.prepend(banner);
+        }
+
+        (async() => {
+
     S=await api.get();
     if(S.settings.autostart === undefined) S.settings.autostart = true;
     if(S.settings.sound === undefined) S.settings.sound = true;
@@ -1124,5 +1229,15 @@ $('#pz').onclick=()=>{api.pause(60);alert('Paused for 1 hour. Use the tray menu 
     draw();
     api.onRefresh(async()=>{S=await api.get();draw()});
     setInterval(updateToday,1000);
-})();
+
+        })();
+    } catch(err) {
+        console.error("Bootstrap error:", err);
+    }
+}
+window.addEventListener('DOMContentLoaded', bootstrap);
+
 </script></body></html>
+
+
+
