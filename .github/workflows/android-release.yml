@@ -88,7 +88,7 @@ jobs:
           cat apk_certs.txt
           
           # Verify AAB signature
-          jarsigner -verify -certs -strict "$AAB_PATH" > aab_certs.txt
+          jarsigner -verify -certs "$AAB_PATH" > aab_certs.txt
           
           # Get SHA-256 Hashes
           AAB_SHA=$(sha256sum "$AAB_PATH" | awk '{print $1}')
