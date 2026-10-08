@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { AnimationController, BuddyMovementController, EmotionController, BuddyBehaviorController } from './src/buddy/BuddyEngine.js';
 
 const MATERIALS = {};
 function getMat(color, type='standard', roughness=0.7) {
@@ -367,13 +368,6 @@ class BuddyViewer {
         floorLight.position.set(0, 0.1, 0);
         this.scene.add(floorLight);
         
-        const planeGeo = new THREE.PlaneGeometry(10, 10);
-        const shadowMat = new THREE.ShadowMaterial({ opacity: 0.3 });
-        const plane = new THREE.Mesh(planeGeo, shadowMat);
-        plane.rotation.x = -Math.PI / 2;
-        plane.receiveShadow = true;
-        this.scene.add(plane);
-        
         this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
         this.camera.position.set(0, 1.5, 4.5);
         this.camera.lookAt(0, 1.2, 0);
@@ -382,9 +376,32 @@ class BuddyViewer {
         this.renderLoop();
     }
     
-    addInstance(container, id, state='idle') {
+    addInstance(container, id, state='IDLE') {
         let model;
-        if (typeof id === 'object') {
+        if (typeof id === 'string') {
+            // PHOTO BUDDY (2.5D Custom Asset)
+            model = new THREE.Group();
+            model.userData = { isPhoto: true };
+            const tex = new THREE.TextureLoader().load(id);
+            const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+            const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
+            plane.position.y = 0.5;
+            
+            // simple rig
+            const root = new THREE.Group();
+            root.name = 'root';
+            const hips = new THREE.Group();
+            hips.name = 'hips';
+            hips.position.y = 0.5;
+            root.add(hips);
+            const spine = new THREE.Group();
+            spine.name = 'spine';
+            hips.add(spine);
+            spine.add(plane);
+            
+            model.add(root);
+            model.userData.rig = { root, hips, spine };
+        } else if (typeof id === 'object') {
             if (id.species === 'human') model = HumanGenerator.generate(id);
             else if (id.species === 'animal') model = AnimalGenerator.generate(id);
             else model = VehicleGenerator.generate(id);
@@ -395,12 +412,22 @@ class BuddyViewer {
         }
         
         this.scene.add(model);
-        const inst = { container, model, state, time: Math.random()*10 };
+        
+        const anim = new AnimationController(model);
+        const movement = new BuddyMovementController(model, container);
+        const emotion = new EmotionController(anim);
+        const behavior = new BuddyBehaviorController(model, anim, movement, emotion);
+        
+        const inst = { container, model, anim, movement, emotion, behavior, state, time: Math.random()*10 };
         
         if (state === 'studio') {
             inst.controls = new OrbitControls(this.camera, this.renderer.domElement);
             inst.controls.enableDamping = true;
             inst.controls.target.set(0, 1.2, 0);
+            behavior.idle();
+        } else {
+            // Just idle initially, overlay will call enterScreen
+            behavior.idle();
         }
         
         this.instances.push(inst);
@@ -413,19 +440,27 @@ class BuddyViewer {
             if (child.isMesh) {
                 if (child.geometry) child.geometry.dispose();
                 if (child.material) {
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach(m => m.dispose());
-                    } else {
-                        child.material.dispose();
-                    }
+                    if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                    else child.material.dispose();
                 }
             }
         });
         this.scene.remove(model);
     }
     
+    removeInstance(inst) {
+        this.disposeModel(inst.model);
+        this.instances = this.instances.filter(i => i !== inst);
+        if (inst.container && inst.container.contains(this.renderer.domElement)) {
+            inst.container.removeChild(this.renderer.domElement);
+        }
+    }
+
     setInstanceState(inst, state) {
         inst.state = state;
+        if (inst.behavior) {
+            inst.behavior.triggerEvent(state);
+        }
     }
     
     updateModel(inst, config) {
@@ -436,181 +471,64 @@ class BuddyViewer {
         else model = VehicleGenerator.generate(config);
         this.scene.add(model);
         inst.model = model;
-        inst.img = null; // force re-render
+        
+        // Re-attach controllers to new model
+        inst.anim = new AnimationController(model);
+        inst.movement = new BuddyMovementController(model, inst.container);
+        inst.emotion = new EmotionController(inst.anim);
+        inst.behavior = new BuddyBehaviorController(model, inst.anim, inst.movement, inst.emotion);
+        inst.behavior.idle();
     }
     
-    removeInstance(inst) {
-        if (inst.model) this.disposeModel(inst.model);
-        if(inst.controls) inst.controls.dispose();
-        this.instances = this.instances.filter(i => i !== inst);
+    draw(container, id, state='IDLE') {
+        const inst = this.addInstance(container, id, state);
+        return inst;
+    }
+    
+    update(inst, state) {
+        this.setInstanceState(inst, state);
     }
     
     renderLoop() {
         requestAnimationFrame(() => this.renderLoop());
         const dt = 0.016; 
         
-        for (const inst of this.instances) {
-            inst.time += dt;
-            if(inst.controls) inst.controls.update();
-            const rig = inst.model.userData.rig;
-            if(!rig) continue;
-            const t = inst.time;
-            
-            if (inst.model.userData.isHuman) {
-                rig.hips.position.y = 1.0;
-                rig.spine.rotation.set(0,0,0);
-                rig.neck.rotation.set(0,0,0);
-                rig.lArm.shoulder.rotation.set(0,0,0.3);
-                rig.rArm.shoulder.rotation.set(0,0,-0.3);
-                rig.lLeg.hipJoint.rotation.set(0,0,0);
-                rig.rLeg.hipJoint.rotation.set(0,0,0);
-                rig.lLeg.knee.rotation.x = 0;
-                rig.rLeg.knee.rotation.x = 0;
-                rig.lArm.elbow.rotation.x = 0;
-                rig.rArm.elbow.rotation.x = 0;
-                
-                if (inst.state === 'idle' || inst.state === 'studio') {
-                    rig.spine.rotation.x = Math.sin(t*2)*0.02;
-                    rig.neck.rotation.x = Math.sin(t*2+1)*0.02;
-                    rig.lArm.shoulder.rotation.x = Math.sin(t*2)*0.05;
-                    rig.rArm.shoulder.rotation.x = Math.sin(t*2+0.5)*0.05;
-                } else if (inst.state === 'move') {
-                    rig.hips.position.y = 1.0 + Math.abs(Math.sin(t*10))*0.1;
-                    rig.spine.rotation.z = Math.sin(t*10)*0.05;
-                    rig.lArm.shoulder.rotation.x = Math.sin(t*10)*0.5;
-                    rig.rArm.shoulder.rotation.x = -Math.sin(t*10)*0.5;
-                    rig.lLeg.hipJoint.rotation.x = -Math.sin(t*10)*0.5;
-                    rig.rLeg.hipJoint.rotation.x = Math.sin(t*10)*0.5;
-                    rig.lLeg.knee.rotation.x = Math.max(0, Math.sin(t*10)*0.5);
-                    rig.rLeg.knee.rotation.x = Math.max(0, -Math.sin(t*10)*0.5);
-                } else if (inst.state === 'talk') {
-                    rig.spine.rotation.x = Math.sin(t*5)*0.05;
-                    rig.lArm.shoulder.rotation.x = -0.5 + Math.sin(t*8)*0.2;
-                    rig.lArm.elbow.rotation.x = -0.5;
-                } else if (inst.state === 'celebrate') {
-                    rig.hips.position.y = 1.0 + Math.abs(Math.sin(t*15))*0.3;
-                    rig.lArm.shoulder.rotation.z = 2.5;
-                    rig.rArm.shoulder.rotation.z = -2.5;
-                }
-            } else if (inst.model.userData.isAnimal) {
-                rig.body.position.y = 0.7;
-                rig.body.rotation.set(0,0,0);
-                rig.head.rotation.set(0,0,0);
-                rig.tail.rotation.set(0,0,0);
-                rig.limbs.forEach(l => l.rotation.set(0,0,0));
-                
-                if (inst.state === 'idle' || inst.state === 'studio') {
-                    rig.body.rotation.x = Math.sin(t*2)*0.02;
-                    rig.head.rotation.x = Math.sin(t*2+1)*0.05;
-                    rig.tail.rotation.z = Math.sin(t*3)*0.2;
-                } else if (inst.state === 'move') {
-                    rig.body.position.y = 0.7 + Math.abs(Math.sin(t*15))*0.2;
-                    rig.body.rotation.z = Math.sin(t*10)*0.1;
-                    rig.limbs[0].rotation.x = Math.sin(t*15)*0.5;
-                    rig.limbs[1].rotation.x = -Math.sin(t*15)*0.5;
-                    rig.limbs[2].rotation.x = -Math.sin(t*15)*0.5;
-                    rig.limbs[3].rotation.x = Math.sin(t*15)*0.5;
-                } else if (inst.state === 'celebrate') {
-                    rig.body.position.y = 0.7 + Math.abs(Math.sin(t*20))*0.4;
-                    rig.body.rotation.y = t * 5;
-                } else if (inst.state === 'talk') {
-                    rig.head.rotation.x = Math.sin(t*10)*0.2;
-                }
-            } else if (inst.model.userData.isVehicle) {
-                rig.body.position.y = 1.0;
-                rig.body.rotation.set(0,0,0);
-                
-                if (inst.state === 'idle' || inst.state === 'studio') {
-                    rig.body.position.y = 1.0 + Math.sin(t*2)*0.05;
-                    rig.body.rotation.z = Math.sin(t*1.5)*0.02;
-                } else if (inst.state === 'move') {
-                    rig.body.position.y = 1.0 + Math.sin(t*5)*0.1;
-                    rig.body.rotation.z = Math.sin(t*3)*0.1;
-                    rig.body.rotation.x = 0.1;
-                } else if (inst.state === 'celebrate') {
-                    rig.body.position.y = 1.5 + Math.sin(t*8)*0.2;
-                    rig.body.rotation.y = t * 3;
-                }
-                
-                if (inst.state === 'move' || inst.state === 'celebrate') {
-                    rig.rotors.forEach(r => {
-                        if(r.axis === 'x') r.mesh.rotation.x += 0.5;
-                        if(r.axis === 'y') r.mesh.rotation.y += 0.5;
-                        if(r.axis === 'z') r.mesh.rotation.z += 0.5;
-                    });
-                    rig.wheels.forEach(w => w.rotation.x += 0.5);
-                }
-            }
-        }
+        // Find active instance (for now, we'll just render all instances in their respective containers or shared)
+        // Since we are appending the renderer to the container dynamically, we need to handle viewport/scissor if multiple exist.
+        // For our overlay, there's only 1 live buddy. For the Studio, there's 1 live buddy.
+        // Let's assume the last instance is the active one.
+        const inst = this.instances[this.instances.length - 1];
         
-        for (const inst of this.instances) {
-            if (inst.state === 'studio') {
-                this.scene.children.forEach(c => { if(c.userData.isHuman || c.userData.isAnimal || c.userData.isVehicle) c.visible = false; });
-                inst.model.visible = true;
-                
-                const w = inst.container.clientWidth || 300;
-                const h = inst.container.clientHeight || 300;
-                if (this.renderer.domElement.width !== w || this.renderer.domElement.height !== h) {
-                    this.renderer.setSize(w, h, false);
-                    this.camera.aspect = w / h;
-                    this.camera.updateProjectionMatrix();
-                }
-                if (this.renderer.domElement.parentNode !== inst.container) {
-                    inst.container.innerHTML = '';
-                    inst.container.appendChild(this.renderer.domElement);
-                }
-                this.renderer.render(this.scene, this.camera);
-                break;
-            } else {
-                if (!inst.img) {
-                    this.scene.children.forEach(c => { if(c.userData.isHuman || c.userData.isAnimal || c.userData.isVehicle) c.visible = false; });
-                    inst.model.visible = true;
-                    
-                    const w = inst.container.clientWidth || 100;
-                    const h = inst.container.clientHeight || 100;
-                    this.renderer.setSize(w, h, false);
-                    this.camera.aspect = w / h;
-                    this.camera.updateProjectionMatrix();
-                    
-                    this.renderer.render(this.scene, this.camera);
-                    
-                    inst.img = new Image();
-                    inst.img.src = this.renderer.domElement.toDataURL('image/png');
-                    inst.img.style.width = '100%';
-                    inst.img.style.height = '100%';
-                    inst.img.style.objectFit = 'contain';
-                    inst.container.innerHTML = '';
-                    inst.container.appendChild(inst.img);
-                    
-                    inst.container.onmouseenter = () => { inst.hover = true; inst.container.innerHTML = ''; inst.container.appendChild(this.renderer.domElement); };
-                    inst.container.onmouseleave = () => { inst.hover = false; inst.container.innerHTML = ''; inst.container.appendChild(inst.img); };
-                }
-                
-                if (inst.hover || inst.state !== 'idle') {
-                    this.scene.children.forEach(c => { if(c.userData.isHuman || c.userData.isAnimal || c.userData.isVehicle) c.visible = false; });
-                    inst.model.visible = true;
-                    
-                    const w = inst.container.clientWidth || 100;
-                    const h = inst.container.clientHeight || 100;
-                    if (this.renderer.domElement.width !== w || this.renderer.domElement.height !== h) {
-                        this.renderer.setSize(w, h, false);
-                        this.camera.aspect = w / h;
-                        this.camera.updateProjectionMatrix();
-                    }
-                    if (this.renderer.domElement.parentNode !== inst.container) {
-                        inst.container.innerHTML = '';
-                        inst.container.appendChild(this.renderer.domElement);
-                    }
-                    this.renderer.render(this.scene, this.camera);
-                    break;
-                }
+        if (inst) {
+            inst.time += dt;
+            if (inst.controls) inst.controls.update();
+            if (inst.anim) inst.anim.update(dt);
+            if (inst.movement) inst.movement.update(dt);
+            
+            const w = inst.container.clientWidth || 300;
+            const h = inst.container.clientHeight || 300;
+            
+            if (this.renderer.domElement.width !== w || this.renderer.domElement.height !== h) {
+                this.renderer.setSize(w, h, false);
+                this.camera.aspect = w / h;
+                this.camera.updateProjectionMatrix();
             }
+            if (this.renderer.domElement.parentNode !== inst.container) {
+                inst.container.innerHTML = '';
+                inst.container.appendChild(this.renderer.domElement);
+            }
+            
+            // Hide other models
+            this.scene.children.forEach(c => {
+                if(c.userData.isHuman || c.userData.isAnimal || c.userData.isVehicle) c.visible = false;
+            });
+            inst.model.visible = true;
+            
+            this.renderer.render(this.scene, this.camera);
         }
     }
 }
 
-export const Configs = { skinTones, hairColors, shirtColors, pantsColors, animalColors, vehicleColors };
 const viewer = new BuddyViewer();
+if (typeof window !== 'undefined') window.Sprites = viewer;
 export default viewer;
-
-export * as THREE from 'three';

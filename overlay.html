@@ -156,73 +156,7 @@ function loopConfetti() {
 }
 loopConfetti();
 
-function animateEntrance(ent, done) {
-    paint('move');
-    const b = $('#buddy');
-    
-    let t = 0;
-    const startX = W + 50, startY = 20; // 20px from bottom default
-    const endX = W - 200, endY = 20;
-    
-    if (ent === 'parachute') {
-        bX = W - 200;
-        bY = H + 50; // comes from top (y is from bottom in CSS, wait, CSS bottom!)
-        const iv = setInterval(()=>{
-            bY -= 4; // falling down (bottom decreases)
-            b.style.bottom = bY + 'px';
-            b.style.left = bX + 'px';
-            b.style.transform = `rotate(${Math.sin(Date.now()/200)*10}deg)`;
-            if(bY <= 20) {
-                clearInterval(iv);
-                bY = 20; b.style.bottom = '20px'; b.style.transform='';
-                paint('idle'); done();
-            }
-        }, 16);
-    } 
-    else if (ent === 'fly') {
-        bX = -100; // start left
-        bY = H - 200; // near top (bottom is large)
-        const iv = setInterval(()=>{
-            bX += 8;
-            bY = (H/2) + Math.sin(bX/100)*50;
-            b.style.bottom = bY + 'px';
-            b.style.left = bX + 'px';
-            if(bX >= endX) {
-                clearInterval(iv);
-                bX = endX; b.style.left = endX + 'px';
-                paint('idle'); done();
-            }
-        }, 16);
-    } 
-    else if (ent === 'drive') {
-        bX = -100; // start left
-        bY = 20; 
-        const iv = setInterval(()=>{
-            bX += 10;
-            b.style.bottom = bY + 'px';
-            b.style.left = bX + 'px';
-            if(bX >= endX) {
-                clearInterval(iv);
-                bX = endX; b.style.left = endX + 'px';
-                paint('idle'); done();
-            }
-        }, 16);
-    }
-    else { // walk
-        bX = W + 50; 
-        bY = 20;
-        const iv = setInterval(()=>{
-            bX -= 6;
-            b.style.bottom = bY + 'px';
-            b.style.left = bX + 'px';
-            if(bX <= endX) {
-                clearInterval(iv);
-                bX = endX; b.style.left = endX + 'px';
-                paint('idle'); done();
-            }
-        }, 16);
-    }
-}
+function animateEntrance(ent, done) { if(buddyInst && buddyInst.behavior) { buddyInst.behavior.enterScreen(done); } else { done(); } }
 
 api.onFire(d => {
     cur = d;
