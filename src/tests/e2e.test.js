@@ -1,5 +1,5 @@
 const assert = require('assert');
-const Core = require('../../www/core.js');
+const Core = require('../../src/shared/core.js');
 
 describe('End-to-End User Journeys', () => {
     it('Journey 1: Reminder persistence across restart', () => {
@@ -58,3 +58,4 @@ describe('End-to-End User Journeys', () => {
         assert.strictEqual(emotion, 'sad');
     });
 });
+

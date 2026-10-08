@@ -1,71 +1,9 @@
-<!doctype html>
-<meta charset="utf-8">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap');
-html,body{margin:0;height:100%;overflow:hidden;background:transparent;font-family:'Inter',system-ui,sans-serif}
-#buddy{position:absolute;left:0;top:0;width:100vw;height:100vh;pointer-events:none;} canvas{pointer-events:auto;} .hit{pointer-events:auto;}
+const fs = require('fs');
+let html = fs.readFileSync('www/overlay.html', 'utf8');
 
-/* Premium Glass Card */
-.bubble{
-    position:absolute;right:250px;bottom:190px;width:320px;
-    background:rgba(25, 25, 35, 0.65);
-    backdrop-filter:blur(16px);
-    -webkit-backdrop-filter:blur(16px);
-    border:1px solid rgba(255,255,255,0.15);
-    color:#fff;
-    padding:20px;
-    border-radius:16px;
-    box-shadow:0 10px 40px rgba(0,0,0,0.3);
-    display:none;
-    line-height:1.5;
-    font-size:16px;
-    font-weight:500;
-}
-.typing::after {
-    content: '|';
-    animation: blink 1s step-end infinite;
-}
-@keyframes blink { 50% { opacity: 0; } }
-
-.btns{position:absolute;right:250px;bottom:130px;display:none;gap:12px}
-.btns button{
-    appearance:none;font:inherit;font-weight:700;font-size:15px;
-    border:none;padding:12px 24px;border-radius:12px;cursor:pointer;
-    transition:transform 0.1s, background 0.2s;
-    box-shadow:0 4px 15px rgba(0,0,0,0.2);
-}
-.btns button:active{transform:scale(0.95)}
-.yes{background:linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);color:#111;}
-.btns button.snz{background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);color:#fff}
-
-#ring{position:absolute;right:300px;bottom:70px;display:none;text-align:center}
-canvas.confetti { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
-</style>
-
-<canvas class="confetti" id="confetti"></canvas>
-<div id="buddy" class="hit"></div>
-<div class="bubble hit" id="msg"></div>
-<div class="btns" id="btns">
-    <button class="yes hit" id="yes"></button>
-    <button class="snz hit" id="snz">Snooze</button>
-</div>
-
-<div id="ring">
-  <svg width="120" height="120" viewBox="0 0 120 120">
-    <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
-    <circle id="arc" cx="60" cy="60" r="48" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="301.6" stroke-dashoffset="301.6" style="transition:stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)"/>
-    <defs>
-      <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#43e97b"/>
-        <stop offset="100%" stop-color="#38f9d7"/>
-      </linearGradient>
-    </defs>
-    <text id="cnt" x="60" y="68" text-anchor="middle" font-size="24" fill="#fff" font-weight="700"></text>
-  </svg>
-</div>
-
-<script src="bundle.js"></script>
-
+// I will just replace the whole `<script>` tag.
+const startScript = html.indexOf('<script>');
+const newScript = `
 <script>
 const viewer = window.Buddy3D.createViewer();
 window.Sprites = {
@@ -274,3 +212,7 @@ $('#snz').onclick = async () => {
     setTimeout(() => leave('walkAway'), 1500);
 };
 </script>
+`;
+
+html = html.substring(0, startScript) + newScript;
+fs.writeFileSync('www/overlay.html', html, 'utf8');

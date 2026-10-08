@@ -26,3 +26,4 @@ describe("UI Paths Integrity", () => {
         assert.ok(html.includes("const buddyState = { id: newId, name: 'Custom Photo', asset: assetId, isPhoto: true };"), "Must create proper buddy state");
     });
 });
+

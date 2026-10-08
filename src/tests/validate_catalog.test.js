@@ -30,3 +30,4 @@ describe('72-Buddy Catalog Validation', () => {
         assert.strictEqual(counts.fantasy, 8, "Must have 8 fantasy");
     });
 });
+

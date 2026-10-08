@@ -1,5 +1,5 @@
 const{app,BrowserWindow,Tray,Menu,ipcMain,screen,nativeImage,powerMonitor}=require('electron');
-const path=require('path'),fs=require('fs'),Core=require('./core.js');
+const path=require('path'),fs=require('fs'),Core=require('./src/shared/core.js');
 const StateStore = require('./src/main/persistence/StateStore');
 const AssetStore = require('./src/main/persistence/AssetStore');
 const Scheduler = require('./src/main/scheduler/Scheduler');
@@ -112,3 +112,4 @@ app.whenReady().then(()=>{
  if(!process.argv.includes('--hidden'))openWin();
  powerMonitor.on('resume',()=>{scheduler.resume()})});
 app.on('window-all-closed',e=>e.preventDefault());
+

@@ -78,3 +78,4 @@ describe('Browser Smoke Test', function() {
         });
     }
 });
+

@@ -84,3 +84,4 @@ test('Persistence Architecture Tests', async (t) => {
     // Cleanup after
     if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
 });
+

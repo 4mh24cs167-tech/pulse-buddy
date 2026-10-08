@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const Core = require('../../www/core.js');
+const Core = require('../../src/shared/core.js');
 
 describe('Comprehensive Verification Suite', () => {
     
@@ -161,3 +161,4 @@ describe('Comprehensive Verification Suite', () => {
     });
 
 });
+

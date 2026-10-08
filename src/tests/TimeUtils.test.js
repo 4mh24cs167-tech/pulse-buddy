@@ -28,3 +28,4 @@ describe('TimeUtils', () => {
         assert.ok(TimeUtils.todayCount(r, now) >= 1);
     });
 });
+

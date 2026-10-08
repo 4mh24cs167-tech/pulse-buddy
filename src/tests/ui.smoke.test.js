@@ -44,3 +44,4 @@ describe('UI Smoke Test', () => {
         assert.match(html, /data-tab="fav"/);
     });
 });
+

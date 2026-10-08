@@ -43,3 +43,4 @@ describe('Scheduler', () => {
         assert.strictEqual(scheduler.pausedUntil, 0);
     });
 });
+

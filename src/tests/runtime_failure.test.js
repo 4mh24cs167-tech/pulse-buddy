@@ -29,3 +29,4 @@ describe('Runtime Failure Regression', () => {
         assert.match(html, /try \{[\s\S]*?init3DBackground\(\);[\s\S]*?\} catch\(e\)/);
     });
 });
+
