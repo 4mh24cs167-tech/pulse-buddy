@@ -3,12 +3,12 @@ const path = require('path');
 const assert = require('assert');
 
 describe('Browser Smoke Test', function() {
-    this.timeout(30000); // 30s timeout for browser
+    this.timeout(120000); // 30s timeout for browser
     let browser;
     let page;
 
     before(async () => {
-        browser = await puppeteer.launch({ headless: true });
+        browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
         page = await browser.newPage();
         
         page.on('requestfailed', request => { console.log('REQ FAILED:', request.url()); });

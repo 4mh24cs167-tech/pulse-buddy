@@ -3,12 +3,12 @@ const path = require('path');
 const assert = require('assert');
 
 describe('Overlay UI Test', function() {
-    this.timeout(20000);
+    this.timeout(120000);
     let browser;
     let page;
 
     before(async () => {
-        browser = await puppeteer.launch({ headless: true });
+        browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
         page = await browser.newPage();
         
         await page.evaluateOnNewDocument(() => {

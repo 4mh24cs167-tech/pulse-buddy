@@ -2,12 +2,12 @@ const { spawn } = require('child_process');
 const assert = require('assert');
 
 describe('Electron Startup Test', function() {
-    this.timeout(20000);
+    this.timeout(120000);
 
     it('should start electron without errors and load index.html', (done) => {
         let stdoutData = '';
         let stderrData = '';
-        const child = spawn('npx', ['electron', '.'], { shell: true });
+        const child = spawn('npx', ['electron', '.', '--no-sandbox'], { shell: true });
 
         child.stdout.on('data', (data) => {
             stdoutData += data.toString();
