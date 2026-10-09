@@ -28,7 +28,7 @@ jobs:
 
 
       - name: Install System UI Dependencies
-        run: sudo apt-get update && sudo apt-get install -y xvfb libnss3 libasound2 libgbm-dev libxshmfence1 libx11-xcb1
+        run: sudo apt-get update && sudo apt-get install -y xvfb libnss3 libasound2t64 libgbm-dev libxshmfence1 libx11-xcb1
 
 
       - name: Build Web Assets
