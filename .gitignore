@@ -11,3 +11,19 @@ out/
 Thumbs.db
 web-dist/
 pulse-buddy-store.json
+
+# Secrets, Credentials & Environment
+.env
+.env.*
+!.env.example
+
+# Android & Apple Signing Keys, Certificates
+*.keystore
+*.jks
+*.p12
+*.p8
+*.key
+*.pem
+*.cer
+*.crt
+*.pfx
