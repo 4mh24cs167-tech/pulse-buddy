@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulse Buddy Companion</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    #companion-root {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 16px;
+      -webkit-app-region: no-drag;
+    }
+    .speech-bubble {
+      position: relative;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+      border-radius: 18px;
+      padding: 14px 18px;
+      margin-bottom: 12px;
+      width: 100%;
+      max-width: 340px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.85) translateY(10px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .bubble-tail {
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 14px;
+      height: 14px;
+      background: rgba(255, 255, 255, 0.96);
+      border-right: 1px solid rgba(226, 232, 240, 0.8);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+    }
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #0ea5e9;
+    }
+    .btn-close {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .btn-close:hover {
+      color: #334155;
+      background: #f1f5f9;
+    }
+    .reminder-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+      line-height: 1.25;
+    }
+    .speech-text {
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-done {
+      flex: 1;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.25);
+      transition: all 0.15s ease;
+    }
+    .btn-done:hover {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+    .btn-done:active {
+      transform: translateY(0);
+    }
+    .btn-snooze {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .btn-snooze:hover {
+      background: #e2e8f0;
+    }
+    .avatar-container {
+      position: relative;
+      width: 170px;
+      height: 170px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .animate-celebrate {
+      animation: jumpCelebrate 0.6s infinite alternate ease-in-out;
+    }
+    @keyframes jumpCelebrate {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-16px) scale(1.05); }
+    }
+  </style>
+</head>
+<body>
+  <div id="companion-root">
+    <div class="speech-bubble" id="speech-bubble">
+      <div class="category-header">
+        <div class="badge">
+          <span class="badge-dot" id="category-dot"></span>
+          <span id="category-name">Reminder</span>
+        </div>
+        <button class="btn-close" id="btn-dismiss" title="Dismiss">✕</button>
+      </div>
+      <div class="reminder-title" id="reminder-title">Reminder Title</div>
+      <div class="speech-text" id="speech-text">Companion message appears here!</div>
+      <div class="action-row" id="action-row">
+        <button class="btn-done" id="btn-done">✓ Done</button>
+        <button class="btn-snooze" id="btn-snooze-10">⏱ Snooze 10m</button>
+      </div>
+    </div>
+
+    <div class="avatar-container" id="avatar-container">
+      <!-- Embedded SVG Rig -->
+      <svg id="avatar-svg" viewBox="0 0 200 200" width="160" height="160">
+        <ellipse cx="100" cy="180" rx="45" ry="8" fill="rgba(0,0,0,0.18)" />
+        <ellipse cx="75" cy="178" rx="15" ry="7" fill="#f97316" />
+        <ellipse cx="125" cy="178" rx="15" ry="7" fill="#f97316" />
+        <ellipse cx="100" cy="115" rx="55" ry="65" fill="#1e293b" />
+        <ellipse cx="100" cy="125" rx="38" ry="48" fill="#f8fafc" />
+        <path d="M62 98 Q100 115 138 98 Q100 85 62 98 Z" fill="#06b6d4" />
+        <rect x="114" y="98" width="14" height="26" rx="4" fill="#0891b2" />
+        <path id="flipper-l" d="M48 110 Q32 140 40 160 Z" fill="#1e293b" />
+        <path id="flipper-r" d="M152 110 Q168 140 160 160 Z" fill="#1e293b" />
+        <ellipse cx="86" cy="75" rx="6" ry="7" fill="#0f172a" />
+        <circle cx="84" cy="72" r="2" fill="#ffffff" />
+        <ellipse cx="114" cy="75" rx="6" ry="7" fill="#0f172a" />
+        <circle cx="112" cy="72" r="2" fill="#ffffff" />
+        <path d="M90 83 Q100 81 110 83 Q100 96 90 83 Z" fill="#f97316" />
+      </svg>
+    </div>
+  </div>
+
+  <script>
+    let currentReminder = null;
+
+    if (window.pulseBuddyAPI) {
+      window.pulseBuddyAPI.onCompanionPayload((payload) => {
+        currentReminder = payload.reminder;
+        document.getElementById('reminder-title').textContent = payload.reminder.title;
+        document.getElementById('speech-text').textContent = payload.speechText;
+        document.getElementById('category-name').textContent = payload.reminder.categoryName || 'Reminder';
+        if (payload.reminder.categoryColor) {
+          document.getElementById('category-dot').style.backgroundColor = payload.reminder.categoryColor;
+        }
+      });
+    }
+
+    document.getElementById('btn-done').addEventListener('click', () => {
+      const container = document.getElementById('avatar-container');
+      container.classList.add('animate-celebrate');
+      document.getElementById('speech-text').textContent = "Awesome job! Recorded as completed! 🎉";
+      document.getElementById('action-row').style.display = 'none';
+
+      setTimeout(() => {
+        if (window.pulseBuddyAPI && currentReminder) {
+          window.pulseBuddyAPI.respondReminderAction('completed', currentReminder.id);
+        }
+      }, 1800);
+    });
+
+    document.getElementById('btn-snooze-10').addEventListener('click', () => {
+      document.getElementById('speech-text').textContent = "Got it! Snoozing for 10 minutes.";
+      setTimeout(() => {
+        if (window.pulseBuddyAPI && currentReminder) {
+          window.pulseBuddyAPI.respondReminderAction('snoozed', currentReminder.id, 10);
+        }
+      }, 800);
+    });
+
+    document.getElementById('btn-dismiss').addEventListener('click', () => {
+      if (window.pulseBuddyAPI && currentReminder) {
+        window.pulseBuddyAPI.respondReminderAction('dismissed', currentReminder.id);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+{
+  "name": "pulse-buddy-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pulse Buddy Avatar Reminder Companion Desktop Application",
+  "author": "Pulse Buddy Team",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev:electron": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json && node -e \"const fs=require('fs'); fs.copyFileSync('src/companion.html', 'dist/companion.html'); if(fs.existsSync('../web/dist')){fs.cpSync('../web/dist', 'web-dist', {recursive:true});}\"",
+    "package:win": "npm run build && electron-builder --win",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:all": "npm run build && electron-builder --win --mac"
+  },
+  "dependencies": {
+    "@pulse-buddy/shared-types": "*",
+    "@pulse-buddy/core": "*",
+    "@pulse-buddy/avatar": "*",
+    "date-fns": "^4.1.0"
+  },
+  "devDependencies": {
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "build": {
+    "electronVersion": "34.2.0",
+    "npmRebuild": false,
+    "appId": "com.pulsebuddy.app",
+    "productName": "Pulse Buddy",
+    "directories": {
+      "output": "../../dist-desktop"
+    },
+    "files": [
+      "dist/**/*",
+      "web-dist/**/*",
+      "resources/**/*",
+      "src/companion.html"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "resources/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.lifestyle",
+      "icon": "resources/icon.icns"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Pulse Buddy"
+    }
+  }
+}

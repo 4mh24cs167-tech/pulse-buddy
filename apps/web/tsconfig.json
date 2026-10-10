@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "paths": {
+      "@pulse-buddy/shared-types": ["../../packages/shared-types/src"],
+      "@pulse-buddy/core": ["../../packages/core/src"],
+      "@pulse-buddy/avatar": ["../../packages/avatar/src"],
+      "@pulse-buddy/ui": ["../../packages/ui/src"],
+      "@pulse-buddy/platform": ["../../packages/platform/src"]
+    }
+  },
+  "include": ["src"]
+}

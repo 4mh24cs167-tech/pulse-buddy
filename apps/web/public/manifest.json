@@ -1,0 +1,22 @@
+{
+  "short_name": "Pulse Buddy",
+  "name": "Pulse Buddy - Avatar Reminder Platform",
+  "description": "Your animated companion platform for hydration, medication, focus, and daily wellness habits.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0ea5e9",
+  "theme_color": "#0ea5e9",
+  "display": "standalone",
+  "orientation": "portrait"
+}
