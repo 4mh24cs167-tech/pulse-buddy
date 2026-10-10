@@ -9,8 +9,12 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
+    "dev:web": "npm run dev --workspace=apps/web",
     "dev:desktop": "concurrently -k \"npm run dev --workspace=apps/web\" \"npm run dev:electron --workspace=apps/desktop\"",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=apps/web",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:desktop": "npm run build --workspace=apps/desktop",
+    "build:all": "npm run build --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
     "package:win": "npm run package:win --workspace=apps/desktop",
