@@ -211,6 +211,12 @@ export const App: React.FC = () => {
         nextOccurrence: nextTime.toISOString(),
         updatedAt: now.toISOString(),
       };
+    } else if (action === 'not_done') {
+      // Not done yet: do not mark completed, advance to next occurrence
+      updatedReminder = advanceReminderSchedule(reminder, now);
+    } else if (action === 'missed') {
+      // Unanswered timeout: record missed, advance schedule
+      updatedReminder = advanceReminderSchedule(reminder, now);
     } else {
       // dismissed
       updatedReminder = advanceReminderSchedule(reminder, now);

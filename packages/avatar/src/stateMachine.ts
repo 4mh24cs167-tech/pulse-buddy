@@ -68,7 +68,7 @@ export class AvatarStateMachine {
   /**
    * Translates reminder lifecycle events to deterministic avatar states.
    */
-  public handleEvent(event: 'due' | 'completed' | 'snoozed' | 'dismissed' | 'missed' | 'habit_goal'): void {
+  public handleEvent(event: 'due' | 'completed' | 'not_done' | 'snoozed' | 'dismissed' | 'missed' | 'habit_goal'): void {
     switch (event) {
       case 'due':
         // Entrance -> draw attention
@@ -76,18 +76,23 @@ export class AvatarStateMachine {
         break;
 
       case 'completed':
-        // Smile & brief celebration, then idle
-        this.transition('celebrate', 2500, 'idle');
+        // Smile, celebratory gesture, and forward movement
+        this.transition('celebrate', 2200, 'forward');
+        break;
+
+      case 'not_done':
+        // Disappointed posture, sad expression, and backward retreat
+        this.transition('sad', 2200, 'backward');
+        break;
+
+      case 'missed':
+        // Gentle disappointed / concerned posture retreat
+        this.transition('sad', 2200, 'backward');
         break;
 
       case 'snoozed':
         // Acknowledge, then calm idle
-        this.transition('acknowledge', 1500, 'idle');
-        break;
-
-      case 'missed':
-        // Gentle concerned expression
-        this.transition('concerned', 3000, 'idle');
+        this.transition('acknowledge', 1200, 'idle');
         break;
 
       case 'habit_goal':
@@ -97,7 +102,7 @@ export class AvatarStateMachine {
 
       case 'dismissed':
         // Acknowledge and calm exit
-        this.transition('acknowledge', 1000, 'exit');
+        this.transition('acknowledge', 800, 'exit');
         break;
 
       default:

@@ -73,6 +73,8 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
   // Upload & Chroma-Key Preview State
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [uploadedFileType, setUploadedFileType] = useState<'image' | 'video'>('image');
+  const [extraClips, setExtraClips] = useState<Partial<Record<AnimationState, string>>>({});
+  const [showMultiClipPanel, setShowMultiClipPanel] = useState(false);
   const [customAvatarName, setCustomAvatarName] = useState('My Custom Buddy');
   const [customAvatarCategory, setCustomAvatarCategory] = useState<AvatarCategory>('custom');
   const [chromaKeyConfig, setChromaKeyConfig] = useState<ChromaKeyConfig>({
@@ -114,15 +116,32 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const handleExtraClipUpload = (stateKey: AnimationState, file: File) => {
+    const validation = validateMediaFile(file);
+    if (!validation.valid) {
+      setUploadError(validation.errorMessage || 'Invalid video clip format.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setExtraClips((prev) => ({
+        ...prev,
+        [stateKey]: event.target?.result as string,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const getDraftAvatar = (): Avatar => ({
     id: `avatar-draft-${Date.now()}`,
     name: customAvatarName.trim() || 'Custom Buddy',
     description: `User custom ${uploadedFileType} companion`,
     type: uploadedFileType,
     category: customAvatarCategory,
-    supportedStates: ['idle', 'enter', 'happy', 'concerned', 'acknowledge', 'celebrate', 'exit'],
+    supportedStates: ['idle', 'enter', 'happy', 'concerned', 'sad', 'acknowledge', 'celebrate', 'forward', 'backward', 'exit'],
     previewUrl: uploadedFileUrl || '',
     sourceUrl: uploadedFileUrl || '',
+    animationClips: Object.keys(extraClips).length > 0 ? extraClips : undefined,
     chromaKeyConfig: uploadedFileType === 'video' ? chromaKeyConfig : undefined,
     isCustom: true,
     createdAt: new Date().toISOString(),
@@ -136,6 +155,7 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
     setActiveTab('gallery');
     setStudioStep(1);
     setUploadedFileUrl(null);
+    setExtraClips({});
     setUploadError(null);
     setUploadWarning(null);
   };
@@ -714,6 +734,8 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
                         uploadedFileType === 'video' ? (
                           <VideoChromaKeyAvatar
                             videoSrc={uploadedFileUrl}
+                            animationClips={extraClips}
+                            state={testState}
                             chromaKeyConfig={chromaKeyConfig}
                             size={230}
                             className="filter drop-shadow-2xl"
@@ -747,18 +769,23 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
                     </div>
 
                     {/* Quick test animation state buttons */}
-                    <div className="w-full flex items-center justify-center gap-1 pt-3 z-10">
-                      {(['idle', 'enter', 'celebrate'] as AnimationState[]).map((st) => (
+                    <div className="w-full flex flex-wrap items-center justify-center gap-1.5 pt-3 z-10">
+                      {([
+                        { state: 'idle', label: 'Idle' },
+                        { state: 'celebrate', label: 'Done (Forward)' },
+                        { state: 'sad', label: 'Not Done (Backward)' },
+                        { state: 'enter', label: 'Enter' },
+                      ] as const).map(({ state: st, label }) => (
                         <button
                           key={st}
-                          onClick={() => setTestState(st)}
+                          onClick={() => setTestState(st as AnimationState)}
                           className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border transition ${
                             testState === st
-                              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent'
-                              : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800'
+                              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-sm'
+                              : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100'
                           }`}
                         >
-                          {st}
+                          {label}
                         </button>
                       ))}
                     </div>
@@ -891,6 +918,66 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
                         </div>
                       )}
                     </div>
+
+                    {/* Multi-State Animation Clips (Optional) */}
+                    {uploadedFileType === 'video' && (
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-3xl border border-slate-200 dark:border-slate-700/60 space-y-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowMultiClipPanel(!showMultiClipPanel)}
+                          className="w-full flex items-center justify-between text-left text-xs font-bold text-slate-800 dark:text-slate-100"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Layers size={15} className="text-teal-500" /> Multi-State Video Clips (Optional)
+                          </span>
+                          <span className="text-[11px] font-semibold text-sky-600 dark:text-sky-400">
+                            {showMultiClipPanel ? 'Hide ▲' : 'Configure ▼'}
+                          </span>
+                        </button>
+
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Pulse Buddy applies smooth 3D perspective translations and scaling automatically. You can also optionally supply dedicated clips for specific expressions.
+                        </p>
+
+                        {showMultiClipPanel && (
+                          <div className="space-y-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                            {/* Happy / Celebrate / Forward clip */}
+                            <div>
+                              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                                <span>Done / Happy / Move Forward Clip</span>
+                                {extraClips.celebrate && <span className="text-emerald-500 font-bold">Loaded ✓</span>}
+                              </div>
+                              <input
+                                type="file"
+                                accept="video/mp4,video/webm"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleExtraClipUpload('celebrate', f);
+                                }}
+                                className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border-0 file:text-[11px] file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 cursor-pointer"
+                              />
+                            </div>
+
+                            {/* Sad / Concerned / Backward clip */}
+                            <div>
+                              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                                <span>Not Done / Sad / Move Backward Clip</span>
+                                {extraClips.sad && <span className="text-emerald-500 font-bold">Loaded ✓</span>}
+                              </div>
+                              <input
+                                type="file"
+                                accept="video/mp4,video/webm"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleExtraClipUpload('sad', f);
+                                }}
+                                className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border-0 file:text-[11px] file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Live Test & Save Action Buttons */}
                     <div className="space-y-2 pt-2">

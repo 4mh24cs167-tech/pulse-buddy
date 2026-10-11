@@ -30,13 +30,22 @@ describe('Avatar State Machine & Behavior Controller', () => {
     expect(fsm.getState()).toBe('happy');
   });
 
-  it('maps "completed" event to celebrate then returns to idle', () => {
+  it('maps "completed" event to celebrate then forward movement', () => {
     const fsm = new AvatarStateMachine();
     fsm.handleEvent('completed');
     expect(fsm.getState()).toBe('celebrate');
 
     vi.advanceTimersByTime(2600);
-    expect(fsm.getState()).toBe('idle');
+    expect(fsm.getState()).toBe('forward');
+  });
+
+  it('maps "not_done" event to sad then backward retreat', () => {
+    const fsm = new AvatarStateMachine();
+    fsm.handleEvent('not_done');
+    expect(fsm.getState()).toBe('sad');
+
+    vi.advanceTimersByTime(2600);
+    expect(fsm.getState()).toBe('backward');
   });
 
   it('maps "snoozed" event to acknowledge then returns to idle', () => {

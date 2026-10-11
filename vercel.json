@@ -7,11 +7,19 @@
   "rewrites": [
     {
       "source": "/assets/index-CyWYxGgK.js",
-      "destination": "/assets/index-BcYh5zRO.js"
+      "destination": "/assets/index-DQnngebQ.js"
+    },
+    {
+      "source": "/assets/index-BcYh5zRO.js",
+      "destination": "/assets/index-DQnngebQ.js"
     },
     {
       "source": "/assets/index-GfpIjCR2.css",
-      "destination": "/assets/index-D4-oI1Es.css"
+      "destination": "/assets/index-D6rfr8RN.css"
+    },
+    {
+      "source": "/assets/index-D4-oI1Es.css",
+      "destination": "/assets/index-D6rfr8RN.css"
     },
     {
       "source": "/(.*)",

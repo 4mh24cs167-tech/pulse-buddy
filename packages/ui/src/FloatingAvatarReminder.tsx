@@ -3,7 +3,7 @@ import { Reminder, Avatar, AnimationState, ReminderAction } from '@pulse-buddy/s
 import { AvatarStateMachine } from '@pulse-buddy/avatar';
 import { soundEngine } from './soundEngine';
 import { AvatarRenderer } from './AvatarRenderer';
-import { CheckCircle2, Clock, X, ExternalLink, Sparkles, ChevronDown } from 'lucide-react';
+import { CheckCircle2, RotateCcw, Clock, X, ExternalLink, ChevronDown } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export type FloatingPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center';
@@ -21,7 +21,7 @@ export interface FloatingAvatarReminderProps {
   testMode?: boolean;
 }
 
-type LifecyclePhase = 'enter' | 'greet' | 'interactive' | 'reaction' | 'exit';
+type LifecyclePhase = 'enter' | 'greet' | 'interactive' | 'reaction_happy' | 'reaction_sad' | 'reaction_neutral' | 'exit';
 
 export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
   reminder,
@@ -44,6 +44,7 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const activeTimersRef = useRef<number[]>([]);
+  const actionDispatchedRef = useRef<boolean>(false);
 
   // Resolve pixel size from size prop
   const resolvedSize =
@@ -84,22 +85,22 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
       setAvatarState(newState);
     });
 
-    // Step A: Enter animation (0ms - 400ms)
-    // Step B: Greet animation (400ms)
+    // Step A: Enter animation (0ms - 450ms)
+    // Step B: Greet animation (450ms)
     safeTimeout(() => {
       setPhase('greet');
       fsm.handleEvent('due');
     }, 450);
 
-    // Step C: Interactive state (800ms)
+    // Step C: Interactive state (850ms)
     safeTimeout(() => {
       setPhase('interactive');
     }, 850);
 
-    // Auto-dismiss countdown if untouched
+    // Auto-dismiss countdown if untouched (triggers unanswered/missed timeout with sad backward reaction)
     if (autoDismissSeconds > 0 && !testMode) {
       safeTimeout(() => {
-        handleDismiss();
+        handleUnansweredTimeout();
       }, autoDismissSeconds * 1000);
     }
 
@@ -122,19 +123,19 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // ACTION: Done (Celebration)
+  // ACTION 1: SUCCESS: DONE → HAPPY → MOVE FORWARD
   const handleDone = () => {
-    if (phase === 'reaction' || phase === 'exit') return;
+    if (phase.startsWith('reaction') || phase === 'exit' || actionDispatchedRef.current) return;
 
-    setPhase('reaction');
-    setReactionMessage('Awesome job! Recorded as completed! 🎉');
+    setPhase('reaction_happy');
+    setReactionMessage('Nice! Great job! 🎉');
     fsm.handleEvent('completed');
     soundEngine.playCelebrationFanfare();
 
     try {
       confetti({
-        particleCount: 75,
-        spread: 65,
+        particleCount: 80,
+        spread: 70,
         origin: { y: 0.75 },
         zIndex: 10000,
       });
@@ -142,42 +143,74 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
       // Confetti fallback
     }
 
-    // Reaction duration then exit smoothly
+    // Hold happy reaction briefly with readable speech bubble, then exit smoothly
     safeTimeout(() => {
       triggerExit('completed');
     }, 2000);
   };
 
-  // ACTION: Snooze (Acknowledgment)
+  // ACTION 2: UNSUCCESSFUL: NOT DONE → SAD → MOVE BACKWARD
+  const handleNotDone = () => {
+    if (phase.startsWith('reaction') || phase === 'exit' || actionDispatchedRef.current) return;
+
+    setPhase('reaction_sad');
+    setReactionMessage("Not done yet? Let's try again. 💙");
+    fsm.handleEvent('not_done');
+    soundEngine.playDisappointedSad();
+
+    // Hold sad backward reaction briefly, then exit smoothly
+    safeTimeout(() => {
+      triggerExit('not_done');
+    }, 2000);
+  };
+
+  // ACTION 3: UNANSWERED TIMEOUT → MISSED → SAD → MOVE BACKWARD
+  const handleUnansweredTimeout = () => {
+    if (phase.startsWith('reaction') || phase === 'exit' || actionDispatchedRef.current) return;
+
+    setPhase('reaction_sad');
+    setReactionMessage("Not done yet? Let's try again. 💙");
+    fsm.handleEvent('missed');
+    soundEngine.playDisappointedSad();
+
+    safeTimeout(() => {
+      triggerExit('missed');
+    }, 2000);
+  };
+
+  // ACTION 4: SNOOZE (NEUTRAL ACKNOWLEDGMENT)
   const handleSnooze = (minutes: number) => {
-    if (phase === 'reaction' || phase === 'exit') return;
+    if (phase.startsWith('reaction') || phase === 'exit' || actionDispatchedRef.current) return;
 
     setSnoozeMenuOpen(false);
-    setPhase('reaction');
+    setPhase('reaction_neutral');
     setReactionMessage(`Snoozed for ${minutes} min! See you soon! ⏰`);
     fsm.handleEvent('snoozed');
     soundEngine.playSnoozeClick();
 
     safeTimeout(() => {
       triggerExit('snoozed', minutes);
-    }, 1300);
+    }, 1200);
   };
 
-  // ACTION: Dismiss
+  // ACTION 5: DISMISS (NEUTRAL CLOSE)
   const handleDismiss = () => {
-    if (phase === 'reaction' || phase === 'exit') return;
+    if (phase.startsWith('reaction') || phase === 'exit' || actionDispatchedRef.current) return;
 
-    setPhase('reaction');
+    setPhase('reaction_neutral');
     setReactionMessage('Got it! Dismissed for now. 👋');
     fsm.handleEvent('dismissed');
 
     safeTimeout(() => {
       triggerExit('dismissed');
-    }, 500);
+    }, 450);
   };
 
-  // EXIT TRANSITION
+  // EXIT TRANSITION AND ACTION DISPATCH
   const triggerExit = (action: ReminderAction, snoozeMinutes?: number) => {
+    if (actionDispatchedRef.current) return;
+    actionDispatchedRef.current = true;
+
     setPhase('exit');
 
     // Wait for exit CSS transition before dispatching action and unmounting
@@ -188,7 +221,7 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
     }, exitDuration);
   };
 
-  // Position CSS classes
+  // Base Position CSS classes
   const getPositionClass = () => {
     switch (position) {
       case 'bottom-left':
@@ -205,21 +238,62 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
     }
   };
 
-  // Animation transition styling based on lifecycle phase
+  // Smooth Perspective Motion Styles: Forward (Happy) vs Backward (Sad) vs Neutral
   const getMotionStyle = () => {
     if (prefersReducedMotion) {
-      return phase === 'exit' ? 'opacity-0' : 'opacity-100';
+      if (phase === 'exit') return 'opacity-0 transition-opacity duration-200';
+      if (phase === 'enter') return 'opacity-0';
+      return 'opacity-100 transition-opacity duration-300';
     }
 
+    // 1. Entrance phase
     if (phase === 'enter') {
       return 'translate-y-12 scale-90 opacity-0 pointer-events-none';
     }
 
+    // 2. Exit phase
     if (phase === 'exit') {
-      return 'translate-y-10 scale-95 opacity-0 pointer-events-none transition-all duration-350 ease-in';
+      return 'translate-y-12 scale-75 opacity-0 pointer-events-none transition-all duration-350 ease-in';
     }
 
-    return 'translate-y-0 scale-100 opacity-100 transition-all duration-500 ease-out';
+    // 3. Success reaction: DONE → HAPPY → MOVE FORWARD
+    // Move toward the center of the screen while scaling up slightly with perspective illusion
+    if (phase === 'reaction_happy') {
+      switch (position) {
+        case 'bottom-left':
+          return 'translate-x-8 -translate-y-8 sm:translate-x-14 sm:-translate-y-12 scale-105 sm:scale-115 opacity-100 transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1)';
+        case 'top-right':
+          return '-translate-x-8 translate-y-8 sm:-translate-x-14 sm:translate-y-12 scale-105 sm:scale-115 opacity-100 transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1)';
+        case 'top-left':
+          return 'translate-x-8 translate-y-8 sm:translate-x-14 sm:translate-y-12 scale-105 sm:scale-115 opacity-100 transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1)';
+        case 'center':
+          return '-translate-y-6 scale-110 sm:scale-120 opacity-100 transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1)';
+        case 'bottom-right':
+        default:
+          return '-translate-x-8 -translate-y-8 sm:-translate-x-14 sm:-translate-y-12 scale-105 sm:scale-115 opacity-100 transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1)';
+      }
+    }
+
+    // 4. Unsuccessful reaction: NOT DONE → SAD → MOVE BACKWARD
+    // Move away from the center toward the screen border while slightly reducing scale
+    if (phase === 'reaction_sad') {
+      switch (position) {
+        case 'bottom-left':
+          return '-translate-x-4 translate-y-4 sm:-translate-x-6 sm:translate-y-6 scale-90 sm:scale-85 opacity-90 transition-all duration-700 ease-in-out';
+        case 'top-right':
+          return 'translate-x-4 -translate-y-4 sm:translate-x-6 sm:-translate-y-6 scale-90 sm:scale-85 opacity-90 transition-all duration-700 ease-in-out';
+        case 'top-left':
+          return '-translate-x-4 -translate-y-4 sm:-translate-x-6 sm:-translate-y-6 scale-90 sm:scale-85 opacity-90 transition-all duration-700 ease-in-out';
+        case 'center':
+          return 'translate-y-6 scale-90 sm:scale-85 opacity-90 transition-all duration-700 ease-in-out';
+        case 'bottom-right':
+        default:
+          return 'translate-x-4 translate-y-4 sm:translate-x-6 sm:translate-y-6 scale-90 sm:scale-85 opacity-90 transition-all duration-700 ease-in-out';
+      }
+    }
+
+    // 5. Default interactive & neutral greeting
+    return 'translate-x-0 translate-y-0 scale-100 opacity-100 transition-all duration-500 ease-out';
   };
 
   // Speech bubble position relative to avatar
@@ -239,12 +313,12 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
           SPEECH BUBBLE COMPONENT
           ========================================================================= */}
       <div
-        className={`relative mb-3 max-w-[340px] sm:max-w-[380px] w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl p-4 sm:p-5 shadow-2xl border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-all duration-300 ${
+        className={`relative mb-3 max-w-[340px] sm:max-w-[390px] w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl p-4 sm:p-5 shadow-2xl border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-all duration-300 ${
           phase === 'enter' ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
         }`}
       >
         {/* Header Pill: Category & Close */}
-        <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100 dark:border-slate-800/80">
+        <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
           <div className="flex items-center gap-2">
             <span
               className="w-2.5 h-2.5 rounded-full shadow-sm animate-pulse"
@@ -280,27 +354,36 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
           {reactionMessage || speechText}
         </p>
 
-        {/* Action Controls (Hidden during celebration/exit reactions) */}
-        {phase !== 'reaction' && phase !== 'exit' && (
+        {/* Action Controls (Visible during interactive phase) */}
+        {!phase.startsWith('reaction') && phase !== 'exit' && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            {/* Done Button */}
+            {/* 1. Done Button (Success: Done → Happy → Move Forward) */}
             <button
               onClick={handleDone}
-              className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold rounded-2xl shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+              className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold rounded-2xl shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
             >
               <CheckCircle2 size={16} />
               Done
             </button>
 
-            {/* Snooze Dropdown Menu */}
+            {/* 2. Not done yet Button (Unsuccessful: Not Done → Sad → Move Backward) */}
+            <button
+              onClick={handleNotDone}
+              className="flex-1 min-w-[110px] flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 text-xs font-bold rounded-2xl active:scale-95 transition-all"
+            >
+              <RotateCcw size={15} />
+              Not done yet
+            </button>
+
+            {/* 3. Snooze Dropdown Menu */}
             <div className="relative">
               <button
                 onClick={() => setSnoozeMenuOpen(!snoozeMenuOpen)}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-2xl active:scale-95 transition-all"
+                className="flex items-center justify-center gap-1 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-2xl active:scale-95 transition-all"
               >
-                <Clock size={15} />
+                <Clock size={14} />
                 <span>Snooze</span>
-                <ChevronDown size={13} className={`transition-transform ${snoozeMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`transition-transform ${snoozeMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {snoozeMenuOpen && (
@@ -321,7 +404,7 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
               )}
             </div>
 
-            {/* Dashboard / Dismiss secondary options */}
+            {/* 4. Dashboard (Optional) */}
             {onOpenDashboard && (
               <button
                 onClick={onOpenDashboard}
@@ -329,13 +412,14 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
                 aria-label="Open dashboard"
                 className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-2xl transition"
               >
-                <ExternalLink size={15} />
+                <ExternalLink size={14} />
               </button>
             )}
 
+            {/* 5. Dismiss */}
             <button
               onClick={handleDismiss}
-              className="px-3 py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition"
+              className="px-2.5 py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition"
             >
               Dismiss
             </button>

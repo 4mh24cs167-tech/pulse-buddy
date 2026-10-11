@@ -6,12 +6,15 @@ export type AnimationState =
   | 'turn'
   | 'happy'
   | 'concerned'
+  | 'sad'
   | 'acknowledge'
   | 'celebrate'
   | 'thinking'
+  | 'forward'
+  | 'backward'
   | 'exit';
 
-export type ReminderAction = 'completed' | 'snoozed' | 'dismissed' | 'missed';
+export type ReminderAction = 'completed' | 'snoozed' | 'dismissed' | 'missed' | 'not_done';
 
 export type ScheduleType = 'once' | 'daily' | 'interval' | 'weekly' | 'custom';
 
@@ -95,6 +98,7 @@ export interface Avatar {
   supportedStates: AnimationState[];
   previewUrl: string;
   sourceUrl?: string; // base64, data URL, or local file uri
+  animationClips?: Partial<Record<AnimationState, string>>;
   chromaKeyConfig?: ChromaKeyConfig;
   visualEffects?: AvatarVisualEffects;
   isCustom: boolean;

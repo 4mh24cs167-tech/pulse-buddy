@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Avatar, AnimationState, ChromaKeyConfig } from '@pulse-buddy/shared-types';
 import { WebGLChromaKeyRenderer, applyChromaKeyToImageData } from '@pulse-buddy/avatar';
 
@@ -17,11 +17,13 @@ export const AvatarRenderer: React.FC<AvatarRendererProps> = ({
   size = 220,
   showEffects = true,
 }) => {
-  // If video avatar with chroma-key
-  if (avatar.type === 'video' && avatar.sourceUrl) {
+  // If video avatar with chroma-key (supports single video or separate animationClips)
+  if (avatar.type === 'video' && (avatar.sourceUrl || avatar.animationClips)) {
     return (
       <VideoChromaKeyAvatar
-        videoSrc={avatar.sourceUrl}
+        videoSrc={avatar.sourceUrl || ''}
+        animationClips={avatar.animationClips}
+        state={state}
         chromaKeyConfig={avatar.chromaKeyConfig}
         size={size}
         className={className}
@@ -71,19 +73,27 @@ function renderBuiltinRig(avatarId: string, state: AnimationState, size: number)
 }
 
 /* =========================================================================
-   1. PIP THE PENGUIN RIG
+   1. PIP THE PENGUIN RIG (BUILT-IN)
    ========================================================================= */
 const PipPenguinRig: React.FC<{ state: AnimationState; size: number }> = ({ state, size }) => {
-  const isCelebrating = state === 'celebrate';
-  const isConcerned = state === 'concerned';
+  const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+  const isSad = state === 'sad' || state === 'concerned' || state === 'backward';
   const isAcknowledge = state === 'acknowledge';
   const isEnter = state === 'enter';
 
-  const bounceClass = isCelebrating
+  const bounceClass = isHappy
     ? 'animate-bounce'
     : isEnter
     ? 'animate-pulse'
     : '';
+
+  const postureStyle = isSad
+    ? 'rotate(-6deg) translateY(10px) scale(0.92)'
+    : isHappy
+    ? 'scale(1.12) translateY(-4px)'
+    : isAcknowledge
+    ? 'scale(1.05)'
+    : 'scale(1)';
 
   return (
     <svg
@@ -92,12 +102,8 @@ const PipPenguinRig: React.FC<{ state: AnimationState; size: number }> = ({ stat
       height={size}
       className={`drop-shadow-lg ${bounceClass}`}
       style={{
-        transform: isConcerned
-          ? 'rotate(-6deg)'
-          : isAcknowledge
-          ? 'scale(1.05)'
-          : 'scale(1)',
-        transition: 'transform 0.3s ease-in-out',
+        transform: postureStyle,
+        transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}
     >
       {/* Shadows */}
@@ -121,11 +127,17 @@ const PipPenguinRig: React.FC<{ state: AnimationState; size: number }> = ({ stat
       <rect x="115" y="100" width="16" height="30" rx="4" fill="#0891b2" />
 
       {/* Flippers */}
-      {isCelebrating ? (
+      {isHappy ? (
         <>
           {/* Arms raised celebrating */}
           <path d="M42 110 Q20 70 30 55 Q48 75 52 105 Z" fill="#1e293b" />
           <path d="M158 110 Q180 70 170 55 Q152 75 148 105 Z" fill="#1e293b" />
+        </>
+      ) : isSad ? (
+        <>
+          {/* Drooped flippers hanging sad at sides */}
+          <path d="M48 115 L36 158 Q44 165 52 145 Z" fill="#1e293b" />
+          <path d="M152 115 L164 158 Q156 165 148 145 Z" fill="#1e293b" />
         </>
       ) : isAcknowledge ? (
         <>
@@ -142,19 +154,19 @@ const PipPenguinRig: React.FC<{ state: AnimationState; size: number }> = ({ stat
       )}
 
       {/* Face & Eyes */}
-      {isCelebrating ? (
+      {isHappy ? (
         // Happy arch eyes
         <>
           <path d="M78 78 Q86 68 94 78" stroke="#0f172a" strokeWidth="4" strokeLinecap="round" fill="none" />
           <path d="M106 78 Q114 68 122 78" stroke="#0f172a" strokeWidth="4" strokeLinecap="round" fill="none" />
         </>
-      ) : isConcerned ? (
-        // Concerned wide eyes
+      ) : isSad ? (
+        // Sad downcast eyes & brows
         <>
-          <circle cx="86" cy="74" r="6" fill="#0f172a" />
-          <circle cx="114" cy="74" r="6" fill="#0f172a" />
-          <path d="M76 65 Q86 70 94 66" stroke="#475569" strokeWidth="3" strokeLinecap="round" fill="none" />
-          <path d="M106 66 Q114 70 124 65" stroke="#475569" strokeWidth="3" strokeLinecap="round" fill="none" />
+          <circle cx="86" cy="76" r="5" fill="#0f172a" />
+          <circle cx="114" cy="76" r="5" fill="#0f172a" />
+          <path d="M78 68 Q86 64 94 70" stroke="#475569" strokeWidth="3" strokeLinecap="round" fill="none" />
+          <path d="M106 70 Q114 64 122 68" stroke="#475569" strokeWidth="3" strokeLinecap="round" fill="none" />
         </>
       ) : (
         // Bright open eyes with specular highlight
@@ -166,15 +178,24 @@ const PipPenguinRig: React.FC<{ state: AnimationState; size: number }> = ({ stat
         </>
       )}
 
-      {/* Cute Blush */}
-      <circle cx="70" cy="85" r="7" fill="#fb7185" opacity="0.6" />
-      <circle cx="130" cy="85" r="7" fill="#fb7185" opacity="0.6" />
+      {/* Blush (hidden on sad) */}
+      {!isSad && (
+        <>
+          <circle cx="70" cy="85" r="7" fill="#fb7185" opacity="0.6" />
+          <circle cx="130" cy="85" r="7" fill="#fb7185" opacity="0.6" />
+        </>
+      )}
 
       {/* Orange Beak */}
-      <path d="M90 83 Q100 81 110 83 Q100 98 90 83 Z" fill="#f97316" />
+      {isSad ? (
+        // Drooped sad beak
+        <path d="M90 88 Q100 83 110 88 Q100 95 90 88 Z" fill="#f97316" />
+      ) : (
+        <path d="M90 83 Q100 81 110 83 Q100 98 90 83 Z" fill="#f97316" />
+      )}
 
-      {/* Celebration sparkles if celebrating */}
-      {isCelebrating && (
+      {/* Celebration sparkles if happy */}
+      {isHappy && (
         <g className="animate-spin" style={{ transformOrigin: '100px 100px' }}>
           <polygon points="30,40 33,48 41,51 33,54 30,62 27,54 19,51 27,48" fill="#eab308" />
           <polygon points="170,40 173,48 181,51 173,54 170,62 167,54 159,51 167,48" fill="#eab308" />
@@ -189,22 +210,32 @@ const PipPenguinRig: React.FC<{ state: AnimationState; size: number }> = ({ stat
    2. DR. ROBO CARETAKER RIG
    ========================================================================= */
 const DrRoboRig: React.FC<{ state: AnimationState; size: number }> = ({ state, size }) => {
-  const isCelebrating = state === 'celebrate';
-  const isConcerned = state === 'concerned';
+  const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+  const isSad = state === 'sad' || state === 'concerned' || state === 'backward';
   const isThinking = state === 'thinking';
+
+  const postureStyle = isSad
+    ? 'rotate(-5deg) translateY(10px) scale(0.92)'
+    : isHappy
+    ? 'scale(1.12) translateY(-5px)'
+    : 'scale(1)';
 
   return (
     <svg
       viewBox="0 0 200 200"
       width={size}
       height={size}
-      className={`drop-shadow-lg ${isCelebrating ? 'animate-bounce' : ''}`}
+      className={`drop-shadow-lg ${isHappy ? 'animate-bounce' : ''}`}
+      style={{
+        transform: postureStyle,
+        transition: 'transform 0.4s ease-out',
+      }}
     >
       {/* Floating Hover Shadow */}
-      <ellipse cx="100" cy="182" rx="40" ry="8" fill="rgba(0,0,0,0.18)" />
+      <ellipse cx="100" cy="182" rx={isSad ? 30 : 40} ry="8" fill="rgba(0,0,0,0.18)" />
 
       {/* Thruster Glow */}
-      <path d="M85 160 Q100 185 115 160 Z" fill="#38bdf8" opacity="0.8" />
+      <path d="M85 160 Q100 185 115 160 Z" fill="#38bdf8" opacity={isSad ? 0.4 : 0.8} />
       <path d="M92 160 Q100 178 108 160 Z" fill="#ffffff" />
 
       {/* Main Body Sphere */}
@@ -215,7 +246,7 @@ const DrRoboRig: React.FC<{ state: AnimationState; size: number }> = ({ state, s
       <path
         d="M80 139 L88 139 L92 133 L96 145 L100 136 L104 139 L120 139"
         fill="none"
-        stroke={isCelebrating ? '#22c55e' : '#38bdf8'}
+        stroke={isHappy ? '#22c55e' : isSad ? '#f59e0b' : '#38bdf8'}
         strokeWidth="2.5"
       />
 
@@ -225,23 +256,23 @@ const DrRoboRig: React.FC<{ state: AnimationState; size: number }> = ({ state, s
 
       {/* Antenna */}
       <line x1="100" y1="58" x2="100" y2="35" stroke="#94a3b8" strokeWidth="4" />
-      <circle cx="100" cy="30" r="8" fill={isCelebrating ? '#eab308' : '#38bdf8'} />
+      <circle cx="100" cy="30" r="8" fill={isHappy ? '#eab308' : isSad ? '#ef4444' : '#38bdf8'} />
 
       {/* Visor Display */}
       <rect x="62" y="72" width="76" height="42" rx="14" fill="#0f172a" />
 
       {/* LED Eyes */}
-      {isCelebrating ? (
+      {isHappy ? (
         // Glowing star / happy eyes
         <>
           <path d="M74 92 Q82 82 90 92" stroke="#22c55e" strokeWidth="4" strokeLinecap="round" fill="none" />
           <path d="M110 92 Q118 82 126 92" stroke="#22c55e" strokeWidth="4" strokeLinecap="round" fill="none" />
         </>
-      ) : isConcerned ? (
-        // Alert Amber eyes
+      ) : isSad ? (
+        // Alert Amber downcast eyes
         <>
-          <circle cx="82" cy="93" r="5" fill="#f59e0b" />
-          <circle cx="118" cy="93" r="5" fill="#f59e0b" />
+          <path d="M74 95 Q82 101 90 95" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+          <path d="M110 95 Q118 101 126 95" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" fill="none" />
         </>
       ) : isThinking ? (
         // Thinking pulse scanner
@@ -263,11 +294,26 @@ const DrRoboRig: React.FC<{ state: AnimationState; size: number }> = ({ state, s
    3. MAYA THE MINDFUL YOGI RIG
    ========================================================================= */
 const MayaYogiRig: React.FC<{ state: AnimationState; size: number }> = ({ state, size }) => {
-  const isCelebrating = state === 'celebrate';
-  const isConcerned = state === 'concerned';
+  const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+  const isSad = state === 'sad' || state === 'concerned' || state === 'backward';
+
+  const postureStyle = isSad
+    ? 'rotate(-3deg) translateY(8px) scale(0.93)'
+    : isHappy
+    ? 'scale(1.12) translateY(-4px)'
+    : 'scale(1)';
 
   return (
-    <svg viewBox="0 0 200 200" width={size} height={size} className="drop-shadow-lg">
+    <svg
+      viewBox="0 0 200 200"
+      width={size}
+      height={size}
+      className="drop-shadow-lg"
+      style={{
+        transform: postureStyle,
+        transition: 'transform 0.4s ease-out',
+      }}
+    >
       <ellipse cx="100" cy="180" rx="45" ry="8" fill="rgba(0,0,0,0.12)" />
 
       {/* Hair bun */}
@@ -284,11 +330,17 @@ const MayaYogiRig: React.FC<{ state: AnimationState; size: number }> = ({ state,
       <path d="M74 65 Q100 48 126 65 Q120 54 100 50 Q80 54 74 65 Z" fill="#451a03" />
 
       {/* Arms */}
-      {isCelebrating ? (
+      {isHappy ? (
         // Victory V-pose arms
         <>
           <path d="M70 120 L40 70" stroke="#fcd34d" strokeWidth="12" strokeLinecap="round" />
           <path d="M130 120 L160 70" stroke="#fcd34d" strokeWidth="12" strokeLinecap="round" />
+        </>
+      ) : isSad ? (
+        // Shoulders and arms hanging down gently
+        <>
+          <path d="M70 120 L60 160" stroke="#fcd34d" strokeWidth="10" strokeLinecap="round" />
+          <path d="M130 120 L140 160" stroke="#fcd34d" strokeWidth="10" strokeLinecap="round" />
         </>
       ) : (
         // Resting mindful arms / prayer gesture
@@ -299,11 +351,11 @@ const MayaYogiRig: React.FC<{ state: AnimationState; size: number }> = ({ state,
       )}
 
       {/* Eyes & Smile */}
-      {isConcerned ? (
+      {isSad ? (
         <>
-          <circle cx="90" cy="74" r="3" fill="#1e293b" />
-          <circle cx="110" cy="74" r="3" fill="#1e293b" />
-          <path d="M94 85 Q100 82 106 85" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="none" />
+          <circle cx="90" cy="75" r="3" fill="#1e293b" />
+          <circle cx="110" cy="75" r="3" fill="#1e293b" />
+          <path d="M94 86 Q100 81 106 86" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="none" />
         </>
       ) : (
         // Serene peaceful closed eyes & smile
@@ -324,27 +376,43 @@ const MayaYogiRig: React.FC<{ state: AnimationState; size: number }> = ({ state,
    4. SPARKY ROCKET ROVER RIG
    ========================================================================= */
 const SparkyRoverRig: React.FC<{ state: AnimationState; size: number }> = ({ state, size }) => {
-  const isCelebrating = state === 'celebrate';
+  const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+  const isSad = state === 'sad' || state === 'concerned' || state === 'backward';
+
+  const postureStyle = isSad
+    ? 'translateY(8px) scale(0.92)'
+    : isHappy
+    ? 'scale(1.12) translateY(-4px)'
+    : 'scale(1)';
 
   return (
-    <svg viewBox="0 0 200 200" width={size} height={size} className={`drop-shadow-lg ${isCelebrating ? 'animate-bounce' : ''}`}>
+    <svg
+      viewBox="0 0 200 200"
+      width={size}
+      height={size}
+      className={`drop-shadow-lg ${isHappy ? 'animate-bounce' : ''}`}
+      style={{
+        transform: postureStyle,
+        transition: 'transform 0.4s ease-out',
+      }}
+    >
       <ellipse cx="100" cy="180" rx="60" ry="10" fill="rgba(0,0,0,0.18)" />
 
       {/* Rover Chassis */}
       <rect x="50" y="95" width="100" height="45" rx="14" fill="#ef4444" stroke="#b91c1c" strokeWidth="3" />
 
       {/* Cabin Dome Glass */}
-      <path d="M70 95 Q100 55 130 95 Z" fill="#67e8f9" opacity="0.8" stroke="#0891b2" strokeWidth="2" />
+      <path d="M70 95 Q100 55 130 95 Z" fill="#67e8f9" opacity={isSad ? 0.5 : 0.8} stroke="#0891b2" strokeWidth="2" />
 
       {/* Wheels */}
       <circle cx="65" cy="150" r="18" fill="#1e293b" stroke="#64748b" strokeWidth="6" />
       <circle cx="135" cy="150" r="18" fill="#1e293b" stroke="#64748b" strokeWidth="6" />
 
       {/* Headlights */}
-      <circle cx="146" cy="115" r="7" fill="#fef08a" />
+      <circle cx="146" cy="115" r="7" fill={isSad ? '#94a3b8' : '#fef08a'} />
 
-      {/* Rocket Flame if Celebrating */}
-      {isCelebrating ? (
+      {/* Rocket Flame if Happy */}
+      {isHappy ? (
         <path d="M50 115 Q20 115 10 115 Q30 105 45 110 Z" fill="#f97316" />
       ) : (
         <line x1="75" y1="65" x2="75" y2="45" stroke="#94a3b8" strokeWidth="3" />
@@ -358,15 +426,41 @@ const SparkyRoverRig: React.FC<{ state: AnimationState; size: number }> = ({ sta
    5. EMBER THE COZY DRAGON RIG
    ========================================================================= */
 const EmberDragonRig: React.FC<{ state: AnimationState; size: number }> = ({ state, size }) => {
-  const isCelebrating = state === 'celebrate';
+  const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+  const isSad = state === 'sad' || state === 'concerned' || state === 'backward';
+
+  const postureStyle = isSad
+    ? 'rotate(-4deg) translateY(10px) scale(0.92)'
+    : isHappy
+    ? 'scale(1.12) translateY(-4px)'
+    : 'scale(1)';
 
   return (
-    <svg viewBox="0 0 200 200" width={size} height={size} className="drop-shadow-lg">
+    <svg
+      viewBox="0 0 200 200"
+      width={size}
+      height={size}
+      className="drop-shadow-lg"
+      style={{
+        transform: postureStyle,
+        transition: 'transform 0.4s ease-out',
+      }}
+    >
       <ellipse cx="100" cy="180" rx="50" ry="9" fill="rgba(0,0,0,0.15)" />
 
       {/* Dragon Wings */}
-      <path d="M60 110 Q20 70 50 50 Q65 75 70 105 Z" fill="#9333ea" />
-      <path d="M140 110 Q180 70 150 50 Q135 75 130 105 Z" fill="#9333ea" />
+      {isSad ? (
+        // Wings folded tight down
+        <>
+          <path d="M60 110 Q40 90 55 130 Z" fill="#7e22ce" />
+          <path d="M140 110 Q160 90 145 130 Z" fill="#7e22ce" />
+        </>
+      ) : (
+        <>
+          <path d="M60 110 Q20 70 50 50 Q65 75 70 105 Z" fill="#9333ea" />
+          <path d="M140 110 Q180 70 150 50 Q135 75 130 105 Z" fill="#9333ea" />
+        </>
+      )}
 
       {/* Main Body */}
       <ellipse cx="100" cy="120" rx="46" ry="52" fill="#a855f7" />
@@ -384,13 +478,22 @@ const EmberDragonRig: React.FC<{ state: AnimationState; size: number }> = ({ sta
       <circle cx="106" cy="96" r="2" fill="#6b21a8" />
 
       {/* Eyes */}
-      <ellipse cx="88" cy="80" rx="6" ry="7" fill="#581c87" />
-      <circle cx="86" cy="78" r="2" fill="#ffffff" />
-      <ellipse cx="112" cy="80" rx="6" ry="7" fill="#581c87" />
-      <circle cx="110" cy="78" r="2" fill="#ffffff" />
+      {isSad ? (
+        <>
+          <circle cx="88" cy="82" r="4" fill="#581c87" />
+          <circle cx="112" cy="82" r="4" fill="#581c87" />
+        </>
+      ) : (
+        <>
+          <ellipse cx="88" cy="80" rx="6" ry="7" fill="#581c87" />
+          <circle cx="86" cy="78" r="2" fill="#ffffff" />
+          <ellipse cx="112" cy="80" rx="6" ry="7" fill="#581c87" />
+          <circle cx="110" cy="78" r="2" fill="#ffffff" />
+        </>
+      )}
 
       {/* Sparkles / Fire Puff */}
-      {isCelebrating && (
+      {isHappy && (
         <circle cx="100" cy="70" r="8" fill="#facc15" className="animate-ping" opacity="0.8" />
       )}
     </svg>
@@ -401,10 +504,26 @@ const EmberDragonRig: React.FC<{ state: AnimationState; size: number }> = ({ sta
    6. COSMO ASTRONAUT RIG
    ========================================================================= */
 const CosmoAstronautRig: React.FC<{ state: AnimationState; size: number }> = ({ state, size }) => {
-  const isCelebrating = state === 'celebrate';
+  const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+  const isSad = state === 'sad' || state === 'concerned' || state === 'backward';
+
+  const postureStyle = isSad
+    ? 'rotate(-4deg) translateY(8px) scale(0.92)'
+    : isHappy
+    ? 'scale(1.12) translateY(-4px)'
+    : 'scale(1)';
 
   return (
-    <svg viewBox="0 0 200 200" width={size} height={size} className="drop-shadow-lg">
+    <svg
+      viewBox="0 0 200 200"
+      width={size}
+      height={size}
+      className="drop-shadow-lg"
+      style={{
+        transform: postureStyle,
+        transition: 'transform 0.4s ease-out',
+      }}
+    >
       <ellipse cx="100" cy="180" rx="40" ry="8" fill="rgba(0,0,0,0.14)" />
 
       {/* Spacesuit Body */}
@@ -420,11 +539,15 @@ const CosmoAstronautRig: React.FC<{ state: AnimationState; size: number }> = ({ 
       {/* Oxygen Chest Controls */}
       <rect x="85" y="120" width="30" height="20" rx="4" fill="#3b82f6" />
       <circle cx="93" cy="130" r="3" fill="#22c55e" />
-      <circle cx="107" cy="130" r="3" fill="#ef4444" />
+      <circle cx="107" cy="130" r="3" fill={isSad ? '#f59e0b' : '#ef4444'} />
 
-      {/* Thumbs up gloved arm */}
-      {isCelebrating ? (
+      {/* Arms */}
+      {isHappy ? (
+        // Thumbs up gloved arm
         <path d="M130 115 L155 90 L160 80" stroke="#f1f5f9" strokeWidth="12" strokeLinecap="round" />
+      ) : isSad ? (
+        // Arms held low
+        <path d="M130 120 L140 160" stroke="#f1f5f9" strokeWidth="10" strokeLinecap="round" />
       ) : (
         <path d="M130 120 L150 140" stroke="#f1f5f9" strokeWidth="10" strokeLinecap="round" />
       )}
@@ -441,14 +564,17 @@ const ImageAvatar: React.FC<{
   size: number;
   className?: string;
 }> = ({ imageSrc, state, size, className = '' }) => {
-  let motionStyle = 'translate-y-0';
-  if (state === 'celebrate') motionStyle = 'animate-bounce';
-  if (state === 'concerned') motionStyle = 'rotate-3 scale-95';
+  const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+  const isSad = state === 'sad' || state === 'concerned' || state === 'backward';
+
+  let motionStyle = 'translate-y-0 scale-100';
+  if (isHappy) motionStyle = 'scale-110 -translate-y-2 animate-bounce';
+  if (isSad) motionStyle = 'scale-90 translate-y-3 rotate-[-3deg]';
   if (state === 'enter') motionStyle = 'scale-105';
 
   return (
     <div
-      className={`relative flex items-center justify-center transition-all duration-300 ${motionStyle} ${className}`}
+      className={`relative flex items-center justify-center transition-all duration-400 ${motionStyle} ${className}`}
       style={{ width: size, height: size }}
     >
       <img
@@ -465,12 +591,23 @@ const ImageAvatar: React.FC<{
    ========================================================================= */
 export const VideoChromaKeyAvatar: React.FC<{
   videoSrc: string;
+  animationClips?: Partial<Record<AnimationState, string>>;
+  state?: AnimationState;
   chromaKeyConfig?: ChromaKeyConfig;
   size: number;
   className?: string;
   onReady?: () => void;
   onError?: (err: string) => void;
-}> = ({ videoSrc, chromaKeyConfig, size, className = '', onReady, onError }) => {
+}> = ({
+  videoSrc,
+  animationClips,
+  state = 'idle',
+  chromaKeyConfig,
+  size,
+  className = '',
+  onReady,
+  onError,
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<WebGLChromaKeyRenderer | null>(null);
@@ -479,14 +616,35 @@ export const VideoChromaKeyAvatar: React.FC<{
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = React.useState<number>(1.0);
 
-  const defaultConfig: ChromaKeyConfig = {
+  // Determine active video source based on state and optional multi-clip uploads
+  const activeVideoSrc = useMemo(() => {
+    if (!animationClips) return videoSrc;
+    if (animationClips[state]) return animationClips[state]!;
+
+    const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+    if (isHappy && (animationClips.forward || animationClips.celebrate || animationClips.happy)) {
+      return (animationClips.forward || animationClips.celebrate || animationClips.happy)!;
+    }
+
+    const isSad = state === 'sad' || state === 'backward' || state === 'concerned';
+    if (isSad && (animationClips.backward || animationClips.sad || animationClips.concerned)) {
+      return (animationClips.backward || animationClips.sad || animationClips.concerned)!;
+    }
+
+    if (state === 'enter' && animationClips.enter) return animationClips.enter;
+    if (state === 'exit' && animationClips.exit) return animationClips.exit;
+
+    return animationClips.idle || videoSrc;
+  }, [videoSrc, animationClips, state]);
+
+  const defaultConfig: ChromaKeyConfig = useMemo(() => ({
     enabled: true,
     keyColor: '#00FF00',
     similarity: 0.35,
     smoothness: 0.1,
     spillSuppression: 0.45,
     ...chromaKeyConfig,
-  };
+  }), [chromaKeyConfig]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -514,9 +672,7 @@ export const VideoChromaKeyAvatar: React.FC<{
       if (video.videoWidth && video.videoHeight) {
         setAspectRatio(video.videoWidth / video.videoHeight);
       }
-      video.play().catch(() => {
-        // Autoplay may be restricted without user interaction; muted video usually autoplays
-      });
+      video.play().catch(() => {});
     };
 
     const handleError = () => {
@@ -533,7 +689,7 @@ export const VideoChromaKeyAvatar: React.FC<{
       video.removeEventListener('error', handleError);
       video.pause();
     };
-  }, [videoSrc, onError]);
+  }, [activeVideoSrc, onError]);
 
   useEffect(() => {
     let animId: number;
@@ -576,6 +732,17 @@ export const VideoChromaKeyAvatar: React.FC<{
   const widthPx = aspectRatio >= 1 ? size : Math.round(size * aspectRatio);
   const heightPx = aspectRatio <= 1 ? size : Math.round(size / aspectRatio);
 
+  // Controlled CSS / container-level movement and posture scaling (single video or multi-clip)
+  const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
+  const isSad = state === 'sad' || state === 'backward' || state === 'concerned';
+
+  let postureTransform = 'scale(1) translate3d(0, 0, 0)';
+  if (isHappy) {
+    postureTransform = 'scale(1.14) translate3d(0, -6px, 0)';
+  } else if (isSad) {
+    postureTransform = 'scale(0.86) translate3d(0, 8px, 0) rotate(-2.5deg)';
+  }
+
   if (errorMessage) {
     return (
       <div
@@ -592,12 +759,16 @@ export const VideoChromaKeyAvatar: React.FC<{
 
   return (
     <div
-      className={`relative inline-flex items-center justify-center select-none ${className}`}
-      style={{ width: widthPx, height: heightPx }}
+      className={`relative inline-flex items-center justify-center select-none transition-transform duration-500 ease-out ${className}`}
+      style={{
+        width: widthPx,
+        height: heightPx,
+        transform: postureTransform,
+      }}
     >
       <video
         ref={videoRef}
-        src={videoSrc}
+        src={activeVideoSrc}
         autoPlay
         loop
         muted

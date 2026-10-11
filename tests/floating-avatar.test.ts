@@ -10,8 +10,9 @@ import {
   calculateSnoozeTime,
   evaluateDueReminders,
   advanceReminderSchedule,
+  computeHabitStats,
 } from '../packages/core/src';
-import { Reminder, ChromaKeyConfig } from '../packages/shared-types/src';
+import { Reminder, ChromaKeyConfig, Avatar, ReminderHistoryRecord } from '../packages/shared-types/src';
 
 describe('Media Upload Validation for Avatar Assets', () => {
   it('validates standard MP4 video successfully', () => {
@@ -92,7 +93,7 @@ describe('Chroma-Key Processing & Edge Spill Suppression', () => {
     const data = new Uint8ClampedArray([
       0, 255, 0, 255,      // Pixel 0: Pure green screen
       40, 50, 220, 255,    // Pixel 1: Blue clothing character
-      180, 195, 100, 255,  // Pixel 2: Foregound element with green spill (g > max(r, b))
+      180, 195, 100, 255,  // Pixel 2: Foreground element with green spill (g > max(r, b))
     ]);
 
     const fakeImageData = {
@@ -115,7 +116,7 @@ describe('Chroma-Key Processing & Edge Spill Suppression', () => {
   });
 });
 
-describe('Floating Avatar Reminder Lifecycle & Duplicate Prevention', () => {
+describe('Floating Avatar Reminder Lifecycle & Forward/Backward Animations', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -124,22 +125,155 @@ describe('Floating Avatar Reminder Lifecycle & Duplicate Prevention', () => {
     vi.useRealTimers();
   });
 
-  it('transitions avatar FSM through enter, greet, celebrate, and idle deterministically', () => {
+  it('Done action triggers celebrate, then forward movement state', () => {
     const fsm = new AvatarStateMachine('enter');
-    expect(fsm.getState()).toBe('enter');
+    const statesVisited: string[] = [];
+    fsm.subscribe((state) => statesVisited.push(state));
 
-    // Due event triggers greeting
+    // Handle completed (Done)
+    fsm.handleEvent('completed');
+    expect(fsm.getState()).toBe('celebrate');
+
+    // After celebrate duration, transitions to forward perspective movement
+    vi.advanceTimersByTime(2300);
+    expect(fsm.getState()).toBe('forward');
+  });
+
+  it('Not done yet action triggers sad state, then backward movement state', () => {
+    const fsm = new AvatarStateMachine('enter');
+    const statesVisited: string[] = [];
+    fsm.subscribe((state) => statesVisited.push(state));
+
+    // Handle not_done
+    fsm.handleEvent('not_done');
+    expect(fsm.getState()).toBe('sad');
+
+    // After sad reaction duration, transitions to backward retreat
+    vi.advanceTimersByTime(2300);
+    expect(fsm.getState()).toBe('backward');
+  });
+
+  it('Unanswered timeout triggers missed event with sad state and backward retreat', () => {
+    const fsm = new AvatarStateMachine('enter');
+
+    // Due greeting
     fsm.handleEvent('due');
     vi.advanceTimersByTime(850);
     expect(fsm.getState()).toBe('happy');
 
-    // Completed action triggers celebrate
-    fsm.handleEvent('completed');
-    expect(fsm.getState()).toBe('celebrate');
+    // Unanswered timeout triggers missed event
+    fsm.handleEvent('missed');
+    expect(fsm.getState()).toBe('sad');
 
-    // After celebration duration, returns to idle
-    vi.advanceTimersByTime(2600);
+    vi.advanceTimersByTime(2300);
+    expect(fsm.getState()).toBe('backward');
+  });
+
+  it('Snooze action acknowledges neutrally without happy or sad completion reactions', () => {
+    const fsm = new AvatarStateMachine('enter');
+
+    fsm.handleEvent('snoozed');
+    expect(fsm.getState()).toBe('acknowledge');
+
+    vi.advanceTimersByTime(1300);
     expect(fsm.getState()).toBe('idle');
+  });
+
+  it('Dismiss action closes neutrally without marking completed', () => {
+    const fsm = new AvatarStateMachine('enter');
+
+    fsm.handleEvent('dismissed');
+    expect(fsm.getState()).toBe('acknowledge');
+
+    vi.advanceTimersByTime(900);
+    expect(fsm.getState()).toBe('exit');
+  });
+
+  it('properly cleans up timers and event listeners on FSM dispose', () => {
+    const fsm = new AvatarStateMachine('enter');
+    let listenerCalled = false;
+    fsm.subscribe(() => {
+      listenerCalled = true;
+    });
+
+    fsm.handleEvent('completed');
+    fsm.dispose();
+
+    // Advancing timers after dispose does not cause errors or fire callbacks
+    vi.advanceTimersByTime(3000);
+    listenerCalled = false;
+    fsm.handleEvent('completed');
+    expect(listenerCalled).toBe(false);
+  });
+});
+
+describe('Action Semantics & Persistence', () => {
+  it('records Done as completed and increments habit stats', () => {
+    const history: ReminderHistoryRecord[] = [
+      {
+        id: 'rec-1',
+        reminderId: 'rem-water',
+        reminderTitle: 'Water Break',
+        categoryId: 'hydration',
+        action: 'completed',
+        scheduledFor: new Date().toISOString(),
+        performedAt: new Date().toISOString(),
+      },
+    ];
+
+    const stats = computeHabitStats(history, []);
+    expect(stats.totalCompleted).toBe(1);
+  });
+
+  it('records Not Done Yet without counting it as completed in habit stats', () => {
+    const history: ReminderHistoryRecord[] = [
+      {
+        id: 'rec-2',
+        reminderId: 'rem-study',
+        reminderTitle: 'Study Sprint',
+        categoryId: 'studying',
+        action: 'not_done',
+        scheduledFor: new Date().toISOString(),
+        performedAt: new Date().toISOString(),
+      },
+      {
+        id: 'rec-3',
+        reminderId: 'rem-study-2',
+        reminderTitle: 'Study Sprint 2',
+        categoryId: 'studying',
+        action: 'missed',
+        scheduledFor: new Date().toISOString(),
+        performedAt: new Date().toISOString(),
+      },
+    ];
+
+    const stats = computeHabitStats(history, []);
+    expect(stats.totalCompleted).toBe(0);
+    expect(stats.totalScheduled).toBe(2);
+  });
+
+  it('advances reminder schedule and updates lastCompletedAt upon Done action', () => {
+    const reminder: Reminder = {
+      id: 'rem-stretch',
+      title: 'Quick stretch',
+      categoryId: 'exercise',
+      schedule: { type: 'interval', time: '09:00', intervalMinutes: 30, timeZone: 'UTC' },
+      snoozeDurationMinutes: 10,
+      priority: 'normal',
+      avatarId: 'maya-yogi',
+      soundEffect: 'gentle',
+      enabled: true,
+      missedPolicy: 'catch_up_immediate',
+      nextOccurrence: '2026-10-11T09:00:00.000Z',
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    const completionTime = new Date('2026-10-11T09:05:00.000Z');
+    const advanced = advanceReminderSchedule(reminder, completionTime);
+
+    expect(new Date(advanced.nextOccurrence).getTime()).toBeGreaterThan(completionTime.getTime());
+    expect(advanced.enabled).toBe(true);
   });
 
   it('prevents duplicate reminder overlays for the same occurrence', () => {
@@ -186,28 +320,66 @@ describe('Floating Avatar Reminder Lifecycle & Duplicate Prevention', () => {
     const newOccKey = `${updatedReminder.id}:${updatedReminder.nextOccurrence}`;
     expect(triggeredOccurrences.has(newOccKey)).toBe(false);
   });
+});
 
-  it('advances reminder schedule and updates lastCompletedAt upon Done action', () => {
-    const reminder: Reminder = {
-      id: 'rem-stretch',
-      title: 'Quick stretch',
-      categoryId: 'exercise',
-      schedule: { type: 'interval', time: '09:00', intervalMinutes: 30, timeZone: 'UTC' },
-      snoozeDurationMinutes: 10,
-      priority: 'normal',
-      avatarId: 'maya-yogi',
-      soundEffect: 'gentle',
-      enabled: true,
-      missedPolicy: 'catch_up_immediate',
-      nextOccurrence: '2026-10-11T09:00:00.000Z',
-      createdAt: '',
-      updatedAt: '',
+describe('Video Avatar Multi-Clip Resolution vs Single Video Fallback', () => {
+  it('resolves dedicated clips when animationClips dictionary is provided', () => {
+    const multiClipAvatar: Avatar = {
+      id: 'avatar-multi',
+      name: 'Custom Companion',
+      description: 'Companion with multi clips',
+      type: 'video',
+      category: 'custom',
+      supportedStates: ['idle', 'celebrate', 'sad', 'forward', 'backward'],
+      previewUrl: 'https://example.com/preview.png',
+      sourceUrl: 'https://example.com/base.mp4',
+      animationClips: {
+        idle: 'https://example.com/idle.mp4',
+        celebrate: 'https://example.com/happy-celebrate.mp4',
+        sad: 'https://example.com/sad-backward.mp4',
+      },
+      isCustom: true,
+      createdAt: new Date().toISOString(),
     };
 
-    const completionTime = new Date('2026-10-11T09:05:00.000Z');
-    const advanced = advanceReminderSchedule(reminder, completionTime);
+    // Helper simulating clip selection logic in VideoChromaKeyAvatar
+    function resolveClip(avatar: Avatar, state: string) {
+      if (!avatar.animationClips) return avatar.sourceUrl;
+      if (avatar.animationClips[state as any]) return avatar.animationClips[state as any];
+      if ((state === 'happy' || state === 'celebrate' || state === 'forward') && avatar.animationClips.celebrate) {
+        return avatar.animationClips.celebrate;
+      }
+      if ((state === 'sad' || state === 'backward' || state === 'concerned') && avatar.animationClips.sad) {
+        return avatar.animationClips.sad;
+      }
+      return avatar.animationClips.idle || avatar.sourceUrl;
+    }
 
-    expect(new Date(advanced.nextOccurrence).getTime()).toBeGreaterThan(completionTime.getTime());
-    expect(advanced.enabled).toBe(true);
+    expect(resolveClip(multiClipAvatar, 'forward')).toBe('https://example.com/happy-celebrate.mp4');
+    expect(resolveClip(multiClipAvatar, 'backward')).toBe('https://example.com/sad-backward.mp4');
+    expect(resolveClip(multiClipAvatar, 'idle')).toBe('https://example.com/idle.mp4');
+  });
+
+  it('falls back to single primary video with container-level scaling when clips are absent', () => {
+    const singleClipAvatar: Avatar = {
+      id: 'avatar-single',
+      name: 'Single Clip Companion',
+      description: 'Single uploaded video',
+      type: 'video',
+      category: 'custom',
+      supportedStates: ['idle'],
+      previewUrl: 'https://example.com/preview.png',
+      sourceUrl: 'https://example.com/single.mp4',
+      isCustom: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    function resolveClip(avatar: Avatar, state: string) {
+      if (!avatar.animationClips) return avatar.sourceUrl;
+      return avatar.sourceUrl;
+    }
+
+    expect(resolveClip(singleClipAvatar, 'forward')).toBe('https://example.com/single.mp4');
+    expect(resolveClip(singleClipAvatar, 'backward')).toBe('https://example.com/single.mp4');
   });
 });

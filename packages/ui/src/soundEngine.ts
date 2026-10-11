@@ -200,6 +200,37 @@ class SoundEngine {
     osc.start(now);
     osc.stop(now + 0.08);
   }
+
+  public playDisappointedSad(): void {
+    if (!this.enabled || this.volume <= 0) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const notes = [
+      { f: 440, d: 0.22, t: 0 },
+      { f: 392, d: 0.26, t: 0.18 },
+      { f: 349.23, d: 0.45, t: 0.36 },
+    ];
+
+    notes.forEach((note) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(note.f, now + note.t);
+
+      gain.gain.setValueAtTime(0, now + note.t);
+      gain.gain.linearRampToValueAtTime(0.2 * this.volume, now + note.t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + note.t + note.d);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + note.t);
+      osc.stop(now + note.t + note.d);
+    });
+  }
 }
 
 export const soundEngine = new SoundEngine();
