@@ -8,14 +8,54 @@
     <meta name="description" content="Pulse Buddy - Animated Avatar Reminder Platform" />
     <link rel="manifest" href="/manifest.json" />
     <title>Pulse Buddy — Avatar Reminder Platform</title>
+
+    <!-- Automatic stale-cache recovery -->
+    <script>
+      (function() {
+        window.addEventListener('error', function(e) {
+          var target = e.target;
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+            var url = target.src || target.href || '';
+            if (url.indexOf('/assets/') !== -1) {
+              console.warn('Detected stale asset load failure (404), auto-purging cache:', url);
+              if (!sessionStorage.getItem('pb_stale_asset_retry')) {
+                sessionStorage.setItem('pb_stale_asset_retry', '1');
+                if ('caches' in window) {
+                  caches.keys().then(function(keys) {
+                    return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+                  }).then(function() {
+                    window.location.reload(true);
+                  }).catch(function() {
+                    window.location.reload(true);
+                  });
+                } else {
+                  window.location.reload(true);
+                }
+              }
+            }
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-brand-500 selection:text-white min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        var refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').then(function(registration) {
+            // Check for service worker updates immediately on page load
+            registration.update();
+          }).catch(function() {});
         });
       }
     </script>
