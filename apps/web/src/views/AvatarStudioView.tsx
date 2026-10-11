@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Avatar, AnimationState, ChromaKeyConfig, AvatarCategory } from '@pulse-buddy/shared-types';
+import { Avatar, AnimationState, ChromaKeyConfig, AvatarCategory, ReminderAction } from '@pulse-buddy/shared-types';
 import { AvatarRenderer, VideoChromaKeyAvatar, soundEngine } from '@pulse-buddy/ui';
-import { generateAvatarPrompts, PromptWizardInput, validateMediaFile } from '@pulse-buddy/avatar';
+import { generateAvatarPrompts, PromptWizardInput, validateMediaFile, PULSE_BUDDY_DEMO_AVATAR } from '@pulse-buddy/avatar';
 import {
   Sparkles,
   Upload,
@@ -22,6 +22,15 @@ import {
   Settings,
   AlertCircle,
   RefreshCw,
+  Clock,
+  RotateCcw,
+  X,
+  Bell,
+  Smile,
+  Frown,
+  FastForward,
+  Rewind,
+  Check,
 } from 'lucide-react';
 
 interface AvatarStudioViewProps {
@@ -30,7 +39,8 @@ interface AvatarStudioViewProps {
   onSetDefaultAvatar: (id: string) => void;
   onSaveAvatar: (avatar: Avatar) => void;
   onDeleteAvatar: (id: string) => void;
-  onTriggerTest: (avatarId: string, customDraft?: Avatar) => void;
+  onTriggerTest: (avatarId: string, customDraft?: Avatar, initialAction?: ReminderAction | 'due', isDemoTest?: boolean) => void;
+  onScheduleInstantReminder?: (avatarId: string, secondsFromNow?: number) => void;
 }
 
 export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
@@ -40,6 +50,7 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
   onSaveAvatar,
   onDeleteAvatar,
   onTriggerTest,
+  onScheduleInstantReminder,
 }) => {
   const [activeTab, setActiveTab] = useState<'gallery' | 'studio'>('gallery');
   const [galleryFilter, setGalleryFilter] = useState<string>('all');
@@ -132,6 +143,55 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
     reader.readAsDataURL(file);
   };
 
+  // Demo Companion State & Handlers
+  const [demoLoadedToast, setDemoLoadedToast] = useState<string | null>(null);
+  const [demoPreviewState, setDemoPreviewState] = useState<AnimationState>('idle');
+  const [schedulerCountdown, setSchedulerCountdown] = useState<number | null>(null);
+  const [activeTestLabel, setActiveTestLabel] = useState<string | null>(null);
+
+  const isDemoDefault = defaultAvatarId === PULSE_BUDDY_DEMO_AVATAR.id;
+
+  const handleLoadDemoAvatar = () => {
+    onSetDefaultAvatar(PULSE_BUDDY_DEMO_AVATAR.id);
+    setUploadedFileUrl(PULSE_BUDDY_DEMO_AVATAR.sourceUrl || null);
+    setUploadedFileType('video');
+    setCustomAvatarName(PULSE_BUDDY_DEMO_AVATAR.name);
+    setCustomAvatarCategory('humans');
+    setExtraClips(PULSE_BUDDY_DEMO_AVATAR.animationClips || {});
+    if (PULSE_BUDDY_DEMO_AVATAR.chromaKeyConfig) {
+      setChromaKeyConfig(PULSE_BUDDY_DEMO_AVATAR.chromaKeyConfig);
+    }
+    setDemoLoadedToast('Pulse Buddy — Demo Companion is now loaded as your active default companion!');
+    setTimeout(() => setDemoLoadedToast(null), 5000);
+  };
+
+  const handleStart5sSchedulerTest = () => {
+    if (schedulerCountdown !== null) return;
+    setSchedulerCountdown(5);
+    setActiveTestLabel('5s Background Scheduler Test Running...');
+    onScheduleInstantReminder?.(PULSE_BUDDY_DEMO_AVATAR.id, 5);
+
+    let count = 5;
+    const interval = window.setInterval(() => {
+      count -= 1;
+      if (count <= 0) {
+        clearInterval(interval);
+        setSchedulerCountdown(null);
+        setActiveTestLabel('Scheduled Reminder Triggered via Background Scheduler!');
+        setTimeout(() => setActiveTestLabel(null), 4000);
+      } else {
+        setSchedulerCountdown(count);
+      }
+    }, 1000);
+  };
+
+  const handleResetDemo = () => {
+    setDemoPreviewState('idle');
+    setSchedulerCountdown(null);
+    setActiveTestLabel(null);
+    setDemoLoadedToast(null);
+  };
+
   const getDraftAvatar = (): Avatar => ({
     id: `avatar-draft-${Date.now()}`,
     name: customAvatarName.trim() || 'Custom Buddy',
@@ -209,6 +269,300 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
           ========================================================================= */}
       {activeTab === 'gallery' && (
         <div className="space-y-6">
+          {/* =========================================================================
+              READY-TO-TEST DEMO COMPANION PANEL (FEATURED SHOWCASE)
+              ========================================================================= */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-sky-500/30 relative overflow-hidden">
+            {/* Subtle decorative glow */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Header Pill & Title */}
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-800">
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="px-3 py-1 text-[11px] font-black uppercase tracking-widest bg-sky-500 text-slate-950 rounded-full shadow-sm flex items-center gap-1.5">
+                    <Sparkles size={13} /> Built-in Demo Companion
+                  </span>
+                  <span className="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30">
+                    Pure RGB(0, 255, 0) Green Screen
+                  </span>
+                  <span className="px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider bg-purple-500/20 text-purple-300 rounded-full border border-purple-500/30">
+                    H.264 Web-Ready MP4
+                  </span>
+                  {isDemoDefault && (
+                    <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 rounded-full flex items-center gap-1">
+                      <CheckCircle2 size={13} /> Active Default
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
+                  Pulse Buddy — Demo Companion
+                </h3>
+                <p className="text-sm text-slate-300 max-w-2xl mt-1 leading-relaxed">
+                  Real 3D animated companion featuring styled dark hair, denim jacket, grey tee, charcoal jeans, and water bottle. Includes genuine idle breathing, celebratory bottle toast, and sad backward slump clips with WebGL chroma-key transparency!
+                </p>
+              </div>
+
+              {/* Load Demo Avatar Button */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <button
+                  onClick={handleLoadDemoAvatar}
+                  className={`px-5 py-3 rounded-2xl font-black text-xs sm:text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
+                    isDemoDefault
+                      ? 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 ring-2 ring-emerald-400'
+                      : 'bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 text-slate-950'
+                  }`}
+                >
+                  {isDemoDefault ? <Check size={18} /> : <Sparkles size={18} />}
+                  {isDemoDefault ? 'Loaded as Active Default' : 'Load Demo Avatar'}
+                </button>
+                <button
+                  onClick={handleResetDemo}
+                  title="Reset Demo State"
+                  className="px-4 py-3 rounded-2xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center justify-center gap-1.5"
+                >
+                  <RefreshCw size={15} /> Reset Demo
+                </button>
+              </div>
+            </div>
+
+            {/* Demo Loaded Success Toast Banner */}
+            {demoLoadedToast && (
+              <div className="mb-6 p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm font-semibold flex items-center gap-2 animate-in fade-in duration-300">
+                <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                <span>{demoLoadedToast}</span>
+              </div>
+            )}
+
+            {/* Active Test Feedback Banner */}
+            {activeTestLabel && (
+              <div className="mb-6 p-3 rounded-2xl bg-sky-500/20 border border-sky-500/40 text-sky-200 text-xs font-bold flex items-center gap-2 animate-pulse">
+                <Play size={14} className="text-sky-400 shrink-0" />
+                <span>Active Action: {activeTestLabel}</span>
+              </div>
+            )}
+
+            {/* Main 2-Column Content: Left Preview / Right Test Controls */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center relative z-10">
+              {/* LEFT: Live Video Chroma-Key Viewport */}
+              <div className="lg:col-span-5 flex flex-col items-center justify-center p-6 bg-slate-950/70 rounded-3xl border border-slate-800 backdrop-blur-md relative overflow-hidden group">
+                {/* Transparent checkerboard background underneath */}
+                <div className="w-full flex items-center justify-between mb-3 text-[11px] font-bold text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    Live WebGL Keyer
+                  </span>
+                  <span className="uppercase tracking-widest text-sky-400 font-extrabold text-[10px]">
+                    {demoPreviewState} State
+                  </span>
+                </div>
+
+                {/* Viewport Canvas */}
+                <div className="relative w-full aspect-[9/16] max-h-[300px] flex items-center justify-center bg-checkerboard rounded-2xl overflow-hidden border border-slate-800">
+                  <VideoChromaKeyAvatar
+                    videoSrc={PULSE_BUDDY_DEMO_AVATAR.sourceUrl || ''}
+                    animationClips={PULSE_BUDDY_DEMO_AVATAR.animationClips}
+                    state={demoPreviewState}
+                    chromaKeyConfig={PULSE_BUDDY_DEMO_AVATAR.chromaKeyConfig}
+                    size={230}
+                    className="filter drop-shadow-2xl"
+                  />
+                </div>
+
+                {/* Quick State Toggle Selector for In-Card Preview */}
+                <div className="w-full mt-4 flex items-center justify-center gap-1.5 flex-wrap">
+                  {(['idle', 'happy', 'sad'] as AnimationState[]).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setDemoPreviewState(st)}
+                      className={`px-3 py-1 text-[11px] font-bold rounded-xl transition uppercase tracking-wider ${
+                        demoPreviewState === st
+                          ? 'bg-sky-500 text-slate-950 shadow-md font-black'
+                          : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-3 text-[10px] text-slate-400 text-center font-mono">
+                  Pure RGB(0, 255, 0) • 540×960 H.264 • Zero-Tolerance Keying
+                </div>
+              </div>
+
+              {/* RIGHT: Test Demo Avatar Interactive Buttons Suite */}
+              <div className="lg:col-span-7 flex flex-col gap-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <h4 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                    <Play size={18} className="text-sky-400" />
+                    Test Demo Avatar (Interactive Suite)
+                  </h4>
+                  <span className="text-[11px] text-slate-400 font-semibold">
+                    Instant Trigger (No Analytics Pollution)
+                  </span>
+                </div>
+
+                {/* 6 Grid Action Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* 1. Preview Idle */}
+                  <button
+                    onClick={() => {
+                      setDemoPreviewState('idle');
+                      setActiveTestLabel('Preview Idle Animation Loop');
+                    }}
+                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-sky-500/50 transition-all text-left group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                      <Eye size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-white group-hover:text-sky-300 transition">
+                        1. Preview Idle
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                        Loops breathing, blinking, and friendly sway in the player.
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* 2. Test Reminder Due */}
+                  <button
+                    onClick={() => {
+                      setActiveTestLabel('Triggered Reminder Due Interactive State');
+                      onTriggerTest(PULSE_BUDDY_DEMO_AVATAR.id, undefined, 'due', true);
+                    }}
+                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-sky-500/50 transition-all text-left group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                      <Bell size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-white group-hover:text-blue-300 transition">
+                        2. Test Reminder Due
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                        Pops up floating overlay in interactive mode with all buttons.
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* 3. Test Done → Happy → Forward */}
+                  <button
+                    onClick={() => {
+                      setActiveTestLabel('Triggered Done → Happy → Move Forward');
+                      onTriggerTest(PULSE_BUDDY_DEMO_AVATAR.id, undefined, 'completed', true);
+                    }}
+                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-500/40 hover:border-emerald-400 transition-all text-left group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                      <Smile size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-emerald-300 group-hover:text-emerald-200 transition">
+                        3. Test Done → Happy → Forward
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                        Confetti, celebration fanfare, raised bottle, and forward perspective scale.
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* 4. Test Not Done → Sad → Backward */}
+                  <button
+                    onClick={() => {
+                      setActiveTestLabel('Triggered Not Done → Sad → Move Backward');
+                      onTriggerTest(PULSE_BUDDY_DEMO_AVATAR.id, undefined, 'not_done', true);
+                    }}
+                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-rose-950/30 hover:bg-rose-950/60 border border-rose-500/40 hover:border-rose-400 transition-all text-left group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                      <Frown size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-rose-300 group-hover:text-rose-200 transition">
+                        4. Test Not Done → Sad → Backward
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                        Sad audio tone, slump head, lowered bottle, and backward retreat.
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* 5. Test Snooze */}
+                  <button
+                    onClick={() => {
+                      setActiveTestLabel('Triggered Snooze Acknowledgment');
+                      onTriggerTest(PULSE_BUDDY_DEMO_AVATAR.id, undefined, 'snoozed', true);
+                    }}
+                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-sky-500/50 transition-all text-left group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                      <Clock size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-white group-hover:text-amber-300 transition">
+                        5. Test Snooze
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                        Acknowledges 5 min snooze with neutral chime and smooth exit.
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* 6. Test Dismiss */}
+                  <button
+                    onClick={() => {
+                      setActiveTestLabel('Triggered Dismiss');
+                      onTriggerTest(PULSE_BUDDY_DEMO_AVATAR.id, undefined, 'dismissed', true);
+                    }}
+                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-sky-500/50 transition-all text-left group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-slate-700 text-slate-300 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                      <X size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-white group-hover:text-slate-200 transition">
+                        6. Test Dismiss
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                        Polite goodbye speech bubble and slide down transition.
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* 7 & 8: End-to-End Live Scheduler Test & Reset */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-sky-950/60 to-indigo-950/60 border border-sky-500/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-sky-500 text-slate-950 flex items-center justify-center shrink-0 font-black text-sm shadow-md">
+                      {schedulerCountdown !== null ? `${schedulerCountdown}s` : <Sparkles size={18} />}
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-black text-white">
+                        End-to-End Live Scheduler Test
+                      </div>
+                      <div className="text-[11px] text-slate-300">
+                        {schedulerCountdown !== null
+                          ? `Countdown running: ${schedulerCountdown}s until in-browser background scheduler triggers!`
+                          : 'Schedules a real 5-second countdown to verify autonomous reminder trigger.'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleStart5sSchedulerTest}
+                    disabled={schedulerCountdown !== null}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-black text-xs bg-sky-400 hover:bg-sky-300 disabled:bg-slate-700 text-slate-950 disabled:text-slate-400 transition shadow-md whitespace-nowrap"
+                  >
+                    {schedulerCountdown !== null ? `Triggering in ${schedulerCountdown}s...` : '⏱️ Start 5s Live Test'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
           {/* Categories filter bar */}
           <div className="flex flex-wrap items-center gap-2">
             {[
@@ -381,6 +735,32 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
                 <p className="text-sm text-slate-500 mt-1">
                   Select your companion creation method. We support still images, transparent media, green-screen video loops, and guided AI prompts.
                 </p>
+              </div>
+
+              {/* Ready-to-Test Demo Quick Loader */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-sky-50 to-indigo-50 dark:from-sky-950/40 dark:to-indigo-950/40 border border-sky-200 dark:border-sky-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h5 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Want to inspect or customize without manual upload?
+                    </h5>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                      Load the pre-rendered Pulse Buddy demo companion directly into Step 4 to adjust chroma-key sliders and test transparent WebGL playback.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    handleLoadDemoAvatar();
+                    setStudioStep(4);
+                  }}
+                  className="px-4 py-2.5 text-xs font-black bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition shrink-0 shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <Sparkles size={14} /> Load Demo into Editor
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -11,7 +11,7 @@ import {
 } from '@pulse-buddy/shared-types';
 import { getPlatform, INITIAL_SEED_REMINDERS, DEFAULT_SETTINGS } from '@pulse-buddy/platform';
 import { computeHabitStats, evaluateDueReminders, advanceReminderSchedule, calculateSnoozeTime, generateContextualSpeech } from '@pulse-buddy/core';
-import { BUILTIN_AVATARS } from '@pulse-buddy/avatar';
+import { BUILTIN_AVATARS, PULSE_BUDDY_DEMO_AVATAR } from '@pulse-buddy/avatar';
 import { FloatingAvatarReminder, soundEngine } from '@pulse-buddy/ui';
 import confetti from 'canvas-confetti';
 
@@ -175,8 +175,59 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleScheduleInstantReminder = async (avatarId: string, secondsFromNow = 5) => {
+    const targetDate = new Date(Date.now() + secondsFromNow * 1000);
+    const companion =
+      avatars.find((a) => a.id === avatarId) ||
+      (avatarId === PULSE_BUDDY_DEMO_AVATAR.id ? PULSE_BUDDY_DEMO_AVATAR : activeCompanion);
+
+    const testRem: Reminder = {
+      id: `scheduler-test-${Date.now()}`,
+      title: 'Water Break — 5s Live Scheduled Demo',
+      categoryId: 'hydration',
+      categoryName: 'Hydration',
+      categoryColor: '#0ea5e9',
+      schedule: {
+        type: 'interval',
+        time: `${String(targetDate.getHours()).padStart(2, '0')}:${String(targetDate.getMinutes()).padStart(2, '0')}`,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        intervalMinutes: 1,
+      },
+      priority: 'normal',
+      missedPolicy: 'catch_up_immediate',
+      nextOccurrence: targetDate.toISOString(),
+      avatarId: companion.id,
+      soundEffect: 'chime',
+      snoozeDurationMinutes: 5,
+      enabled: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setReminders((prev) => [testRem, ...prev]);
+    await platform.saveReminder(testRem);
+  };
+
   const handleReminderAction = async (action: ReminderAction, reminderId: string, snoozeMinutes?: number) => {
     const now = new Date();
+    const isDemoOrTest =
+      reminderId.startsWith('test-') ||
+      reminderId.startsWith('demo-test-') ||
+      reminderId.startsWith('scheduler-test-') ||
+      !!activeTrigger?.isDemoTest;
+
+    if (isDemoOrTest) {
+      if (action === 'completed') {
+        confetti({ particleCount: 60, spread: 60, origin: { y: 0.8 } });
+      }
+      if (reminderId.startsWith('scheduler-test-')) {
+        setReminders((prev) => prev.filter((r) => r.id !== reminderId));
+        await platform.deleteReminder(reminderId);
+      }
+      setActiveTrigger(null);
+      return;
+    }
+
     const reminder = reminders.find((r) => r.id === reminderId);
     if (!reminder) return;
 
@@ -444,19 +495,31 @@ export const App: React.FC = () => {
             onSetDefaultAvatar={(id) => handleSaveSettings({ defaultAvatarId: id })}
             onSaveAvatar={handleSaveAvatar}
             onDeleteAvatar={handleDeleteAvatar}
-            onTriggerTest={(avatarId, customDraft) => {
+            onScheduleInstantReminder={handleScheduleInstantReminder}
+            onTriggerTest={(avatarId, customDraft, initialAction, isDemoTest) => {
               const rem = reminders[0] || INITIAL_SEED_REMINDERS[0];
-              const companion = customDraft || avatars.find((a) => a.id === avatarId) || activeCompanion;
+              const companion =
+                customDraft ||
+                avatars.find((a) => a.id === avatarId) ||
+                (avatarId === PULSE_BUDDY_DEMO_AVATAR.id ? PULSE_BUDDY_DEMO_AVATAR : activeCompanion);
               const testReminder: Reminder = {
                 ...rem,
-                id: `test-${Date.now()}`,
-                title: rem.title || 'Hydration Reminder with Companion',
+                id: `demo-test-${Date.now()}`,
+                title: 'Hydration Break with Companion',
+                avatarId: companion.id,
               };
               setActiveTrigger({
                 reminder: testReminder,
                 avatar: companion,
-                speechText: generateContextualSpeech(testReminder),
+                speechText:
+                  initialAction === 'completed'
+                    ? 'Nice! Great job! 🎉'
+                    : initialAction === 'not_done'
+                    ? "Not done yet? Let's try again. 💙"
+                    : generateContextualSpeech(testReminder),
                 scheduledTime: new Date().toISOString(),
+                initialAction: initialAction || 'due',
+                isDemoTest: isDemoTest ?? true,
               });
             }}
           />
@@ -495,7 +558,8 @@ export const App: React.FC = () => {
           onClose={() => setActiveTrigger(null)}
           onOpenDashboard={() => setCurrentTab('dashboard')}
           autoDismissSeconds={settings.displayDurationSeconds}
-          testMode={activeTrigger.reminder.id.startsWith('test-')}
+          testMode={activeTrigger.reminder.id.startsWith('test-') || activeTrigger.reminder.id.startsWith('demo-test-') || activeTrigger.reminder.id.startsWith('scheduler-test-') || !!activeTrigger.isDemoTest}
+          initialAction={activeTrigger.initialAction}
         />
       )}
     </div>

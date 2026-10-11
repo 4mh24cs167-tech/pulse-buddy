@@ -138,3 +138,20 @@ describe('AI Avatar Prompt Wizard', () => {
     expect(prompts.recommendedSettings.backgroundHex).toBe('#00FF00');
   });
 });
+
+describe('Pulse Buddy Built-in Demo Avatar', () => {
+  it('exports PULSE_BUDDY_DEMO_AVATAR as primary built-in companion with video clips and chroma config', async () => {
+    const { PULSE_BUDDY_DEMO_AVATAR, BUILTIN_AVATARS } = await import('../packages/avatar/src/library');
+
+    expect(PULSE_BUDDY_DEMO_AVATAR.id).toBe('pulse-buddy-demo');
+    expect(PULSE_BUDDY_DEMO_AVATAR.type).toBe('video');
+    expect(PULSE_BUDDY_DEMO_AVATAR.name).toBe('Pulse Buddy — Demo Companion');
+    expect(PULSE_BUDDY_DEMO_AVATAR.sourceUrl).toBe('/demo-avatars/pulse-buddy/demo-idle.mp4');
+    expect(PULSE_BUDDY_DEMO_AVATAR.animationClips?.idle).toBe('/demo-avatars/pulse-buddy/demo-idle.mp4');
+    expect(PULSE_BUDDY_DEMO_AVATAR.animationClips?.happy).toBe('/demo-avatars/pulse-buddy/demo-happy.mp4');
+    expect(PULSE_BUDDY_DEMO_AVATAR.animationClips?.sad).toBe('/demo-avatars/pulse-buddy/demo-sad.mp4');
+    expect(PULSE_BUDDY_DEMO_AVATAR.chromaKeyConfig?.keyColor).toBe('#00FF00');
+    expect(PULSE_BUDDY_DEMO_AVATAR.chromaKeyConfig?.enabled).toBe(true);
+    expect(BUILTIN_AVATARS[0].id).toBe('pulse-buddy-demo');
+  });
+});

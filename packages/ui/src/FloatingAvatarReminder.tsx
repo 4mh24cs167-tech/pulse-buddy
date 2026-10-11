@@ -19,6 +19,7 @@ export interface FloatingAvatarReminderProps {
   onClose?: () => void;
   autoDismissSeconds?: number;
   testMode?: boolean;
+  initialAction?: ReminderAction | 'due';
 }
 
 type LifecyclePhase = 'enter' | 'greet' | 'interactive' | 'reaction_happy' | 'reaction_sad' | 'reaction_neutral' | 'exit';
@@ -34,6 +35,7 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
   onClose,
   autoDismissSeconds = 45,
   testMode = false,
+  initialAction,
 }) => {
   const [phase, setPhase] = useState<LifecyclePhase>('enter');
   const [avatarState, setAvatarState] = useState<AnimationState>('enter');
@@ -94,11 +96,13 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
 
     // Step C: Interactive state (850ms)
     safeTimeout(() => {
-      setPhase('interactive');
+      if (!initialAction || initialAction === 'due') {
+        setPhase('interactive');
+      }
     }, 850);
 
     // Auto-dismiss countdown if untouched (triggers unanswered/missed timeout with sad backward reaction)
-    if (autoDismissSeconds > 0 && !testMode) {
+    if (autoDismissSeconds > 0 && !testMode && (!initialAction || initialAction === 'due')) {
       safeTimeout(() => {
         handleUnansweredTimeout();
       }, autoDismissSeconds * 1000);
@@ -220,6 +224,25 @@ export const FloatingAvatarReminder: React.FC<FloatingAvatarReminderProps> = ({
       if (onClose) onClose();
     }, exitDuration);
   };
+
+  // Immediate action dispatch if initialAction requested (for test panel)
+  useEffect(() => {
+    if (!initialAction || initialAction === 'due') return;
+
+    const timer = window.setTimeout(() => {
+      if (initialAction === 'completed') {
+        handleDone();
+      } else if (initialAction === 'not_done') {
+        handleNotDone();
+      } else if (initialAction === 'snoozed') {
+        handleSnooze(5);
+      } else if (initialAction === 'dismissed') {
+        handleDismiss();
+      }
+    }, 550);
+
+    return () => clearTimeout(timer);
+  }, [initialAction]);
 
   // Base Position CSS classes
   const getPositionClass = () => {

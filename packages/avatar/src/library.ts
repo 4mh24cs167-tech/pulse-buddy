@@ -1,6 +1,51 @@
 import { Avatar } from '@pulse-buddy/shared-types';
 
+export const PULSE_BUDDY_DEMO_AVATAR: Avatar = {
+  id: 'pulse-buddy-demo',
+  name: 'Pulse Buddy — Demo Companion',
+  description: 'The signature 3D animated companion with styled dark hair, denim jacket, water bottle, and real green-screen video chroma-key reactions.',
+  type: 'video',
+  category: 'humans',
+  supportedStates: [
+    'idle',
+    'enter',
+    'happy',
+    'concerned',
+    'sad',
+    'acknowledge',
+    'celebrate',
+    'forward',
+    'backward',
+    'exit',
+  ],
+  previewUrl: '/demo-avatars/pulse-buddy/preview.png',
+  sourceUrl: '/demo-avatars/pulse-buddy/demo-idle.mp4',
+  animationClips: {
+    idle: '/demo-avatars/pulse-buddy/demo-idle.mp4',
+    enter: '/demo-avatars/pulse-buddy/demo-idle.mp4',
+    happy: '/demo-avatars/pulse-buddy/demo-happy.mp4',
+    celebrate: '/demo-avatars/pulse-buddy/demo-happy.mp4',
+    forward: '/demo-avatars/pulse-buddy/demo-happy.mp4',
+    sad: '/demo-avatars/pulse-buddy/demo-sad.mp4',
+    concerned: '/demo-avatars/pulse-buddy/demo-sad.mp4',
+    backward: '/demo-avatars/pulse-buddy/demo-sad.mp4',
+    acknowledge: '/demo-avatars/pulse-buddy/demo-idle.mp4',
+    exit: '/demo-avatars/pulse-buddy/demo-idle.mp4',
+  },
+  chromaKeyConfig: {
+    enabled: true,
+    keyColor: '#00FF00',
+    similarity: 0.35,
+    smoothness: 0.1,
+    spillSuppression: 0.45,
+  },
+  isCustom: false,
+  isFavorite: true,
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
 export const BUILTIN_AVATARS: Avatar[] = [
+  PULSE_BUDDY_DEMO_AVATAR,
   {
     id: 'pip-penguin',
     name: 'Pip the Penguin',

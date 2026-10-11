@@ -158,6 +158,8 @@ export interface ReminderTriggerPayload {
   avatar: Avatar;
   speechText: string;
   scheduledTime: string;
+  initialAction?: ReminderAction | 'due';
+  isDemoTest?: boolean;
 }
 
 export interface AppDiagnostics {
