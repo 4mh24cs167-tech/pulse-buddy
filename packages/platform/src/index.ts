@@ -9,6 +9,11 @@ import {
 } from '@pulse-buddy/shared-types';
 import { BUILTIN_AVATARS } from '@pulse-buddy/avatar';
 import { DEFAULT_CATEGORIES, calculateNextOccurrence } from '@pulse-buddy/core';
+import {
+  saveAvatarToIndexedDB,
+  getAvatarsFromIndexedDB,
+  deleteAvatarFromIndexedDB,
+} from './indexedDbStorage';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
@@ -233,6 +238,15 @@ export class BrowserPlatformAdapter implements IPlatformAdapter {
   public async getAvatars(): Promise<Avatar[]> {
     const builtin = [...BUILTIN_AVATARS];
     if (typeof window === 'undefined') return builtin;
+    try {
+      const idbAvatars = await getAvatarsFromIndexedDB();
+      if (idbAvatars && idbAvatars.length > 0) {
+        return [...builtin, ...idbAvatars];
+      }
+    } catch {
+      // IndexedDB query failed, fallback to localStorage
+    }
+
     const raw = localStorage.getItem('pulse_buddy_custom_avatars');
     if (!raw) return builtin;
     try {
@@ -244,24 +258,45 @@ export class BrowserPlatformAdapter implements IPlatformAdapter {
   }
 
   public async saveAvatar(avatar: Avatar): Promise<Avatar> {
-    const raw = localStorage.getItem('pulse_buddy_custom_avatars');
-    let list: Avatar[] = raw ? JSON.parse(raw) : [];
-    const idx = list.findIndex((a) => a.id === avatar.id);
-    if (idx >= 0) {
-      list[idx] = avatar;
-    } else {
-      list = [avatar, ...list];
+    try {
+      await saveAvatarToIndexedDB(avatar);
+    } catch (err) {
+      console.warn('IndexedDB save failed:', err);
     }
-    localStorage.setItem('pulse_buddy_custom_avatars', JSON.stringify(list));
+
+    try {
+      const raw = localStorage.getItem('pulse_buddy_custom_avatars');
+      let list: Avatar[] = raw ? JSON.parse(raw) : [];
+      const idx = list.findIndex((a) => a.id === avatar.id);
+      if (idx >= 0) {
+        list[idx] = avatar;
+      } else {
+        list = [avatar, ...list];
+      }
+      localStorage.setItem('pulse_buddy_custom_avatars', JSON.stringify(list));
+    } catch (err) {
+      // localStorage may fail on large video base64, which is safely stored in IndexedDB
+      console.info('Avatar metadata saved to IndexedDB; skipped localStorage due to quota.');
+    }
     return avatar;
   }
 
   public async deleteAvatar(id: string): Promise<boolean> {
+    try {
+      await deleteAvatarFromIndexedDB(id);
+    } catch {
+      // Ignore
+    }
     const raw = localStorage.getItem('pulse_buddy_custom_avatars');
-    if (!raw) return false;
-    let list: Avatar[] = JSON.parse(raw);
-    list = list.filter((a) => a.id !== id);
-    localStorage.setItem('pulse_buddy_custom_avatars', JSON.stringify(list));
+    if (raw) {
+      try {
+        let list: Avatar[] = JSON.parse(raw);
+        list = list.filter((a) => a.id !== id);
+        localStorage.setItem('pulse_buddy_custom_avatars', JSON.stringify(list));
+      } catch {
+        // Ignore
+      }
+    }
     return true;
   }
 

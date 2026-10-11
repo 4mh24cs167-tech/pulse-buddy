@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Avatar, AnimationState, ChromaKeyConfig, AvatarCategory } from '@pulse-buddy/shared-types';
-import { AvatarRenderer, soundEngine } from '@pulse-buddy/ui';
-import { generateAvatarPrompts, PromptWizardInput } from '@pulse-buddy/avatar';
+import { AvatarRenderer, VideoChromaKeyAvatar, soundEngine } from '@pulse-buddy/ui';
+import { generateAvatarPrompts, PromptWizardInput, validateMediaFile } from '@pulse-buddy/avatar';
 import {
   Sparkles,
   Upload,
@@ -20,6 +20,8 @@ import {
   ArrowLeft,
   Eye,
   Settings,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 
 interface AvatarStudioViewProps {
@@ -28,7 +30,7 @@ interface AvatarStudioViewProps {
   onSetDefaultAvatar: (id: string) => void;
   onSaveAvatar: (avatar: Avatar) => void;
   onDeleteAvatar: (id: string) => void;
-  onTriggerTest: (avatarId: string) => void;
+  onTriggerTest: (avatarId: string, customDraft?: Avatar) => void;
 }
 
 export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
@@ -43,6 +45,9 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
   const [galleryFilter, setGalleryFilter] = useState<string>('all');
   const [testState, setTestState] = useState<AnimationState>('idle');
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadWarning, setUploadWarning] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<'keyed' | 'original'>('keyed');
 
   // Studio Step Tracker (1: Choose Method, 2: Requirements, 3: AI Prompt, 4: Preview & Chroma)
   const [studioStep, setStudioStep] = useState<number>(1);
@@ -88,38 +93,51 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const isVid = file.type.startsWith('video/');
-    setUploadedFileType(isVid ? 'video' : 'image');
+    const validation = validateMediaFile(file);
+    if (!validation.valid) {
+      setUploadError(validation.errorMessage || 'Invalid file format.');
+      return;
+    }
+
+    setUploadError(null);
+    setUploadWarning(validation.warningMessage || null);
+    setUploadedFileType(validation.mediaType === 'video' ? 'video' : 'image');
 
     const reader = new FileReader();
     reader.onload = (event) => {
       setUploadedFileUrl(event.target?.result as string);
       setStudioStep(4); // Advance to preview and chroma key adjustment
     };
+    reader.onerror = () => {
+      setUploadError('Failed to read uploaded file. Please select another file.');
+    };
     reader.readAsDataURL(file);
   };
+
+  const getDraftAvatar = (): Avatar => ({
+    id: `avatar-draft-${Date.now()}`,
+    name: customAvatarName.trim() || 'Custom Buddy',
+    description: `User custom ${uploadedFileType} companion`,
+    type: uploadedFileType,
+    category: customAvatarCategory,
+    supportedStates: ['idle', 'enter', 'happy', 'concerned', 'acknowledge', 'celebrate', 'exit'],
+    previewUrl: uploadedFileUrl || '',
+    sourceUrl: uploadedFileUrl || '',
+    chromaKeyConfig: uploadedFileType === 'video' ? chromaKeyConfig : undefined,
+    isCustom: true,
+    createdAt: new Date().toISOString(),
+  });
 
   const handleSaveCustomAvatar = () => {
     if (!uploadedFileUrl) return;
 
-    const newAvatar: Avatar = {
-      id: `avatar-${Date.now()}`,
-      name: customAvatarName.trim() || 'Custom Buddy',
-      description: `User custom ${uploadedFileType} companion`,
-      type: uploadedFileType,
-      category: customAvatarCategory,
-      supportedStates: ['idle', 'enter', 'happy', 'concerned', 'acknowledge', 'celebrate', 'exit'],
-      previewUrl: uploadedFileUrl,
-      sourceUrl: uploadedFileUrl,
-      chromaKeyConfig: uploadedFileType === 'video' ? chromaKeyConfig : undefined,
-      isCustom: true,
-      createdAt: new Date().toISOString(),
-    };
-
+    const newAvatar = getDraftAvatar();
     onSaveAvatar(newAvatar);
     setActiveTab('gallery');
     setStudioStep(1);
     setUploadedFileUrl(null);
+    setUploadError(null);
+    setUploadWarning(null);
   };
 
   const filteredAvatars = avatars.filter((a) => {
@@ -604,12 +622,35 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
             <div className="space-y-6">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                  Step 4: Preview, Chroma-Key Adjustment, and Import
+                  Step 4: Preview, Chroma-Key Calibration, and Import
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  Upload your generated image or green-screen video file, calibrate color distance and edge smoothness, and save to your companion library.
+                  Upload your avatar video or image, calibrate green-screen transparency in real time, and test your floating companion directly on the website.
                 </p>
               </div>
+
+              {/* Error and Warning Banners */}
+              {uploadError && (
+                <div className="p-4 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-2xl flex items-center justify-between gap-3 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={18} className="shrink-0 text-rose-500" />
+                    <span>{uploadError}</span>
+                  </div>
+                  <button
+                    onClick={() => setUploadError(null)}
+                    className="text-rose-500 hover:text-rose-700 font-bold underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {uploadWarning && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900 rounded-2xl flex items-center gap-2 text-amber-700 dark:text-amber-300 text-xs font-medium">
+                  <Info size={16} className="shrink-0 text-amber-500" />
+                  <span>{uploadWarning}</span>
+                </div>
+              )}
 
               {/* Upload Drop Area */}
               {!uploadedFileUrl ? (
@@ -617,17 +658,17 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
                   <Upload size={36} className="mx-auto text-sky-500" />
                   <div>
                     <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                      Choose an image (PNG, JPG, WebP) or video (MP4, WebM)
+                      Choose an avatar video (MP4, WebM) or image (PNG, WebP, GIF)
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
-                      Max file size: 25MB. Processed safely in your local browser/desktop sandbox.
+                      Supports alpha-channel WebM and green-screen chroma-key videos. Max 50MB.
                     </p>
                   </div>
                   <label className="inline-block px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-2xl cursor-pointer transition">
                     Browse File
                     <input
                       type="file"
-                      accept="image/*,video/*"
+                      accept="video/mp4,video/webm,video/quicktime,image/png,image/webp,image/gif,image/jpeg"
                       onChange={handleFileUpload}
                       className="hidden"
                     />
@@ -635,31 +676,95 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                  {/* Left Column: Transparency Checkerboard Preview Box */}
-                  <div className="md:col-span-6 flex flex-col items-center justify-center p-6 bg-checkerboard rounded-3xl border border-slate-300 dark:border-slate-700 min-h-[300px]">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-white/80 dark:bg-slate-900/80 px-2 py-0.5 rounded-md mb-3">
-                      Live Transparency Checkerboard Preview
-                    </span>
+                  {/* Left Column: Live Transparency Checkerboard Preview */}
+                  <div className="md:col-span-6 flex flex-col items-center justify-between p-6 bg-checkerboard rounded-3xl border border-slate-300 dark:border-slate-700 min-h-[360px] relative overflow-hidden">
+                    {/* View Switcher: Keyed Transparent vs Raw Original */}
+                    <div className="w-full flex items-center justify-between mb-4 z-10">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-full shadow-sm border border-slate-200/60 dark:border-slate-800">
+                        {previewMode === 'keyed' ? 'Live Transparent Preview' : 'Raw Source Media'}
+                      </span>
 
-                    {uploadedFileType === 'video' ? (
-                      <video
-                        src={uploadedFileUrl}
-                        controls
-                        autoPlay
-                        loop
-                        muted
-                        className="max-h-64 object-contain rounded-2xl drop-shadow-md"
-                      />
-                    ) : (
-                      <img
-                        src={uploadedFileUrl}
-                        alt="Uploaded Avatar"
-                        className="max-h-64 object-contain rounded-2xl drop-shadow-md"
-                      />
-                    )}
+                      <div className="flex items-center gap-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-[11px] font-bold">
+                        <button
+                          onClick={() => setPreviewMode('keyed')}
+                          className={`px-2.5 py-1 rounded-xl transition ${
+                            previewMode === 'keyed'
+                              ? 'bg-sky-500 text-white shadow-sm'
+                              : 'text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          Transparent
+                        </button>
+                        <button
+                          onClick={() => setPreviewMode('original')}
+                          className={`px-2.5 py-1 rounded-xl transition ${
+                            previewMode === 'original'
+                              ? 'bg-sky-500 text-white shadow-sm'
+                              : 'text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          Raw Video
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Preview Viewport */}
+                    <div className="my-auto py-4 flex items-center justify-center">
+                      {previewMode === 'keyed' ? (
+                        uploadedFileType === 'video' ? (
+                          <VideoChromaKeyAvatar
+                            videoSrc={uploadedFileUrl}
+                            chromaKeyConfig={chromaKeyConfig}
+                            size={230}
+                            className="filter drop-shadow-2xl"
+                          />
+                        ) : (
+                          <AvatarRenderer
+                            avatar={getDraftAvatar()}
+                            state={testState}
+                            size={230}
+                            className="filter drop-shadow-2xl"
+                          />
+                        )
+                      ) : (
+                        uploadedFileType === 'video' ? (
+                          <video
+                            src={uploadedFileUrl}
+                            controls
+                            autoPlay
+                            loop
+                            muted
+                            className="max-h-64 object-contain rounded-2xl drop-shadow-md"
+                          />
+                        ) : (
+                          <img
+                            src={uploadedFileUrl}
+                            alt="Uploaded Media"
+                            className="max-h-64 object-contain rounded-2xl drop-shadow-md"
+                          />
+                        )
+                      )}
+                    </div>
+
+                    {/* Quick test animation state buttons */}
+                    <div className="w-full flex items-center justify-center gap-1 pt-3 z-10">
+                      {(['idle', 'enter', 'celebrate'] as AnimationState[]).map((st) => (
+                        <button
+                          key={st}
+                          onClick={() => setTestState(st)}
+                          className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border transition ${
+                            testState === st
+                              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent'
+                              : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800'
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Right Column: Chroma-Key Sliders & Naming */}
+                  {/* Right Column: Chroma-Key Calibration & Settings */}
                   <div className="md:col-span-6 space-y-4">
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -669,8 +774,8 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
                         type="text"
                         value={customAvatarName}
                         onChange={(e) => setCustomAvatarName(e.target.value)}
-                        placeholder="e.g. Zen Master Tanuki"
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs"
+                        placeholder="e.g. Bolt the Robot, Aqua Buddy"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-semibold"
                       />
                     </div>
 
@@ -681,99 +786,147 @@ export const AvatarStudioView: React.FC<AvatarStudioViewProps> = ({
                       <select
                         value={customAvatarCategory}
                         onChange={(e) => setCustomAvatarCategory(e.target.value as any)}
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs"
+                        className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-medium"
                       >
+                        <option value="custom">Custom Avatar</option>
                         <option value="animals">Animals</option>
                         <option value="humans">Humans</option>
                         <option value="robots">Robots</option>
                         <option value="vehicles">Vehicles</option>
                         <option value="fantasy">Fantasy Characters</option>
-                        <option value="custom">Custom</option>
                       </select>
                     </div>
 
-                    {/* Chroma-Key Settings (for Green Screen) */}
-                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 space-y-3">
+                    {/* Chroma-Key Calibration Panel */}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-3xl border border-slate-200 dark:border-slate-700/60 space-y-3.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                          <Sliders size={14} className="text-sky-500" /> Chroma-Key Green Removal
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          <Sliders size={15} className="text-sky-500" /> Chroma-Key Green Background Removal
                         </span>
-                        <input
-                          type="checkbox"
-                          checked={chromaKeyConfig.enabled}
-                          onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, enabled: e.target.checked })}
-                          className="rounded text-sky-600"
-                        />
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={chromaKeyConfig.enabled}
+                            onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, enabled: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+                        </label>
                       </div>
 
-                      <div>
-                        <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                          <span>Similarity Tolerance</span>
-                          <span>{Math.round(chromaKeyConfig.similarity * 100)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0.1"
-                          max="0.8"
-                          step="0.01"
-                          value={chromaKeyConfig.similarity}
-                          onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, similarity: parseFloat(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
+                      {chromaKeyConfig.enabled && (
+                        <div className="space-y-3 pt-1">
+                          {/* Key Color Picker */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold text-slate-500">Key Color Target</span>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={chromaKeyConfig.keyColor}
+                                onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, keyColor: e.target.value })}
+                                className="w-7 h-7 rounded-lg border border-slate-300 cursor-pointer overflow-hidden p-0"
+                              />
+                              <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 uppercase">
+                                {chromaKeyConfig.keyColor}
+                              </span>
+                            </div>
+                          </div>
 
-                      <div>
-                        <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                          <span>Edge Smoothness</span>
-                          <span>{Math.round(chromaKeyConfig.smoothness * 100)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0.01"
-                          max="0.4"
-                          step="0.01"
-                          value={chromaKeyConfig.smoothness}
-                          onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, smoothness: parseFloat(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
+                          {/* Similarity Slider */}
+                          <div>
+                            <div className="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
+                              <span>Color Similarity Tolerance</span>
+                              <span className="font-bold text-sky-600 dark:text-sky-400">
+                                {Math.round(chromaKeyConfig.similarity * 100)}%
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0.1"
+                              max="0.85"
+                              step="0.01"
+                              value={chromaKeyConfig.similarity}
+                              onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, similarity: parseFloat(e.target.value) })}
+                              className="w-full accent-sky-600"
+                            />
+                          </div>
 
-                      <div>
-                        <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                          <span>Green-Spill Suppression</span>
-                          <span>{Math.round(chromaKeyConfig.spillSuppression * 100)}%</span>
+                          {/* Edge Smoothness Slider */}
+                          <div>
+                            <div className="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
+                              <span>Edge Softness & Smoothness</span>
+                              <span className="font-bold text-sky-600 dark:text-sky-400">
+                                {Math.round(chromaKeyConfig.smoothness * 100)}%
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0.01"
+                              max="0.4"
+                              step="0.01"
+                              value={chromaKeyConfig.smoothness}
+                              onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, smoothness: parseFloat(e.target.value) })}
+                              className="w-full accent-sky-600"
+                            />
+                          </div>
+
+                          {/* Spill Suppression Slider */}
+                          <div>
+                            <div className="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
+                              <span>Green-Spill Suppression (Fringe Removal)</span>
+                              <span className="font-bold text-sky-600 dark:text-sky-400">
+                                {Math.round(chromaKeyConfig.spillSuppression * 100)}%
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0.0"
+                              max="1.0"
+                              step="0.05"
+                              value={chromaKeyConfig.spillSuppression}
+                              onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, spillSuppression: parseFloat(e.target.value) })}
+                              className="w-full accent-sky-600"
+                            />
+                          </div>
                         </div>
-                        <input
-                          type="range"
-                          min="0.0"
-                          max="1.0"
-                          step="0.05"
-                          value={chromaKeyConfig.spillSuppression}
-                          onChange={(e) => setChromaKeyConfig({ ...chromaKeyConfig, spillSuppression: parseFloat(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-3 pt-2">
+                    {/* Live Test & Save Action Buttons */}
+                    <div className="space-y-2 pt-2">
                       <button
-                        onClick={() => setUploadedFileUrl(null)}
-                        className="px-4 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-50 rounded-xl"
+                        onClick={() => onTriggerTest('draft', getDraftAvatar())}
+                        className="w-full py-2.5 bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 font-bold text-xs rounded-2xl border border-sky-200 dark:border-sky-800 transition flex items-center justify-center gap-2 active:scale-95"
                       >
-                        Discard
+                        <Play size={14} className="fill-current" />
+                        Test Floating Avatar Reminder On Screen
                       </button>
-                      <button
-                        onClick={handleSaveCustomAvatar}
-                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-sm transition active:scale-95"
-                      >
-                        Save to Avatar Library ✓
-                      </button>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => {
+                            setUploadedFileUrl(null);
+                            setUploadError(null);
+                            setUploadWarning(null);
+                          }}
+                          className="px-4 py-2.5 text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-2xl transition"
+                        >
+                          Discard
+                        </button>
+                        <button
+                          onClick={handleSaveCustomAvatar}
+                          className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-md shadow-emerald-600/20 transition active:scale-95 flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle2 size={15} />
+                          Save to Avatar Library
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={() => setStudioStep(3)}
                   className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"

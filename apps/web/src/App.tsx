@@ -12,7 +12,7 @@ import {
 import { getPlatform, INITIAL_SEED_REMINDERS, DEFAULT_SETTINGS } from '@pulse-buddy/platform';
 import { computeHabitStats, evaluateDueReminders, advanceReminderSchedule, calculateSnoozeTime, generateContextualSpeech } from '@pulse-buddy/core';
 import { BUILTIN_AVATARS } from '@pulse-buddy/avatar';
-import { CompanionBubble, soundEngine } from '@pulse-buddy/ui';
+import { FloatingAvatarReminder, soundEngine } from '@pulse-buddy/ui';
 import confetti from 'canvas-confetti';
 
 import { DashboardView } from './views/DashboardView';
@@ -58,6 +58,7 @@ export const App: React.FC = () => {
 
   // Active in-page overlay trigger for browser mode or preview test
   const [activeTrigger, setActiveTrigger] = useState<ReminderTriggerPayload | null>(null);
+  const triggeredOccurrencesRef = React.useRef<Set<string>>(new Set());
 
   // Initialize data
   useEffect(() => {
@@ -112,22 +113,33 @@ export const App: React.FC = () => {
     }
   }, [settings.theme]);
 
-  // Web in-browser scheduler loop (checks due reminders every 5s if in web browser)
+  // Web in-browser scheduler loop (checks due reminders every 4s, preventing duplicate triggers)
   useEffect(() => {
     if (platform.isDesktop()) return; // Desktop uses Electron's background scheduler
 
     const interval = setInterval(() => {
+      // Don't show new reminder while another is already actively floating on the screen
+      if (activeTrigger) return;
+
       const now = new Date();
       const evaluation = evaluateDueReminders(reminders, now, settings);
 
       if (evaluation.dueToTrigger.length > 0) {
-        const due = evaluation.dueToTrigger[0];
-        triggerReminderInApp(due);
+        // Find first due reminder whose occurrence hasn't been shown yet
+        const due = evaluation.dueToTrigger.find((r) => {
+          const occKey = `${r.id}:${r.nextOccurrence}`;
+          return !triggeredOccurrencesRef.current.has(occKey);
+        });
+
+        if (due) {
+          triggeredOccurrencesRef.current.add(`${due.id}:${due.nextOccurrence}`);
+          triggerReminderInApp(due);
+        }
       }
-    }, 5000);
+    }, 4000);
 
     return () => clearInterval(interval);
-  }, [reminders, settings, avatars]);
+  }, [reminders, settings, avatars, activeTrigger]);
 
   // Compute habit stats
   const stats: HabitStats = computeHabitStats(history, reminders);
@@ -426,17 +438,20 @@ export const App: React.FC = () => {
             onSetDefaultAvatar={(id) => handleSaveSettings({ defaultAvatarId: id })}
             onSaveAvatar={handleSaveAvatar}
             onDeleteAvatar={handleDeleteAvatar}
-            onTriggerTest={(avatarId) => {
-              const rem = reminders[0];
-              if (rem) {
-                const companion = avatars.find((a) => a.id === avatarId) || activeCompanion;
-                setActiveTrigger({
-                  reminder: rem,
-                  avatar: companion,
-                  speechText: generateContextualSpeech(rem),
-                  scheduledTime: rem.nextOccurrence,
-                });
-              }
+            onTriggerTest={(avatarId, customDraft) => {
+              const rem = reminders[0] || INITIAL_SEED_REMINDERS[0];
+              const companion = customDraft || avatars.find((a) => a.id === avatarId) || activeCompanion;
+              const testReminder: Reminder = {
+                ...rem,
+                id: `test-${Date.now()}`,
+                title: rem.title || 'Hydration Reminder with Companion',
+              };
+              setActiveTrigger({
+                reminder: testReminder,
+                avatar: companion,
+                speechText: generateContextualSpeech(testReminder),
+                scheduledTime: new Date().toISOString(),
+              });
             }}
           />
         )}
@@ -462,30 +477,20 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* In-Browser Floating Companion Overlay (when triggered in browser or preview) */}
+      {/* In-Browser Ad-Style Floating Avatar Reminder Companion Overlay */}
       {activeTrigger && (
-        <div
-          className={`fixed z-50 pointer-events-none ${
-            settings.companionPosition === 'bottom-left'
-              ? 'bottom-6 left-6'
-              : settings.companionPosition === 'top-right'
-              ? 'top-6 right-6'
-              : settings.companionPosition === 'top-left'
-              ? 'top-6 left-6'
-              : settings.companionPosition === 'center'
-              ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
-              : 'bottom-6 right-6'
-          }`}
-        >
-          <CompanionBubble
-            reminder={activeTrigger.reminder}
-            avatar={activeTrigger.avatar}
-            speechText={activeTrigger.speechText}
-            onAction={handleReminderAction}
-            onClose={() => setActiveTrigger(null)}
-            autoDismissSeconds={settings.displayDurationSeconds}
-          />
-        </div>
+        <FloatingAvatarReminder
+          reminder={activeTrigger.reminder}
+          avatar={activeTrigger.avatar}
+          speechText={activeTrigger.speechText}
+          position={settings.companionPosition}
+          size={settings.companionSize}
+          onAction={handleReminderAction}
+          onClose={() => setActiveTrigger(null)}
+          onOpenDashboard={() => setCurrentTab('dashboard')}
+          autoDismissSeconds={settings.displayDurationSeconds}
+          testMode={activeTrigger.reminder.id.startsWith('test-')}
+        />
       )}
     </div>
   );

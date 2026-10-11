@@ -461,17 +461,23 @@ const ImageAvatar: React.FC<{
 };
 
 /* =========================================================================
-   8. VIDEO CHROMA-KEY AVATAR (WEBGL RENDERER)
+   8. VIDEO CHROMA-KEY AVATAR (WEBGL RENDERER & 2D FALLBACK)
    ========================================================================= */
-const VideoChromaKeyAvatar: React.FC<{
+export const VideoChromaKeyAvatar: React.FC<{
   videoSrc: string;
   chromaKeyConfig?: ChromaKeyConfig;
   size: number;
   className?: string;
-}> = ({ videoSrc, chromaKeyConfig, size, className = '' }) => {
+  onReady?: () => void;
+  onError?: (err: string) => void;
+}> = ({ videoSrc, chromaKeyConfig, size, className = '', onReady, onError }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<WebGLChromaKeyRenderer | null>(null);
+
+  const [hasRenderedFirstFrame, setHasRenderedFirstFrame] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = React.useState<number>(1.0);
 
   const defaultConfig: ChromaKeyConfig = {
     enabled: true,
@@ -489,7 +495,7 @@ const VideoChromaKeyAvatar: React.FC<{
     try {
       rendererRef.current = new WebGLChromaKeyRenderer(canvas);
     } catch {
-      // WebGL not supported, fallback handled
+      // WebGL not supported, will use 2D canvas fallback
     }
 
     return () => {
@@ -501,18 +507,49 @@ const VideoChromaKeyAvatar: React.FC<{
   }, []);
 
   useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      if (video.videoWidth && video.videoHeight) {
+        setAspectRatio(video.videoWidth / video.videoHeight);
+      }
+      video.play().catch(() => {
+        // Autoplay may be restricted without user interaction; muted video usually autoplays
+      });
+    };
+
+    const handleError = () => {
+      const msg = 'Unable to decode video format. Please ensure the file is a valid MP4 or WebM video.';
+      setErrorMessage(msg);
+      if (onError) onError(msg);
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('error', handleError);
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('error', handleError);
+      video.pause();
+    };
+  }, [videoSrc, onError]);
+
+  useEffect(() => {
     let animId: number;
 
     const renderLoop = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (video && canvas && !video.paused && !video.ended) {
+
+      if (video && canvas && video.readyState >= 2 && !video.paused && !video.ended) {
         if (rendererRef.current) {
           rendererRef.current.render(video, defaultConfig);
         } else {
           // 2D canvas fallback
           const ctx = canvas.getContext('2d');
           if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             if (defaultConfig.enabled) {
               const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -521,18 +558,42 @@ const VideoChromaKeyAvatar: React.FC<{
             }
           }
         }
+
+        if (!hasRenderedFirstFrame) {
+          setHasRenderedFirstFrame(true);
+          if (onReady) onReady();
+        }
       }
+
       animId = requestAnimationFrame(renderLoop);
     };
 
     animId = requestAnimationFrame(renderLoop);
     return () => cancelAnimationFrame(animId);
-  }, [defaultConfig]);
+  }, [defaultConfig, hasRenderedFirstFrame, onReady]);
+
+  // Compute width and height keeping character's natural aspect ratio
+  const widthPx = aspectRatio >= 1 ? size : Math.round(size * aspectRatio);
+  const heightPx = aspectRatio <= 1 ? size : Math.round(size / aspectRatio);
+
+  if (errorMessage) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center p-3 text-center bg-rose-50/90 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-900 ${className}`}
+        style={{ width: size, height: size }}
+      >
+        <span className="text-xl mb-1">⚠️</span>
+        <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-300 leading-tight">
+          {errorMessage}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`relative inline-block ${className}`}
-      style={{ width: size, height: size }}
+      className={`relative inline-flex items-center justify-center select-none ${className}`}
+      style={{ width: widthPx, height: heightPx }}
     >
       <video
         ref={videoRef}
@@ -546,9 +607,11 @@ const VideoChromaKeyAvatar: React.FC<{
       />
       <canvas
         ref={canvasRef}
-        width={size}
-        height={size}
-        className="w-full h-full object-contain pointer-events-none drop-shadow-lg"
+        width={widthPx}
+        height={heightPx}
+        className={`w-full h-full object-contain pointer-events-none drop-shadow-lg transition-opacity duration-300 ${
+          hasRenderedFirstFrame ? 'opacity-100' : 'opacity-0'
+        }`}
       />
     </div>
   );
