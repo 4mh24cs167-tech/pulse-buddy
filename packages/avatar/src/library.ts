@@ -9,6 +9,8 @@ export const PULSE_BUDDY_DEMO_AVATAR: Avatar = {
   supportedStates: [
     'idle',
     'enter',
+    'walk',
+    'run',
     'happy',
     'concerned',
     'sad',
@@ -22,7 +24,9 @@ export const PULSE_BUDDY_DEMO_AVATAR: Avatar = {
   sourceUrl: '/demo-avatars/pulse-buddy/demo-idle.mp4',
   animationClips: {
     idle: '/demo-avatars/pulse-buddy/demo-idle.mp4',
-    enter: '/demo-avatars/pulse-buddy/demo-idle.mp4',
+    walk: '/demo-avatars/pulse-buddy/demo-walk-left-to-right.mp4',
+    run: '/demo-avatars/pulse-buddy/demo-walk-left-to-right.mp4',
+    enter: '/demo-avatars/pulse-buddy/demo-walk-left-to-right.mp4',
     happy: '/demo-avatars/pulse-buddy/demo-happy.mp4',
     celebrate: '/demo-avatars/pulse-buddy/demo-happy.mp4',
     forward: '/demo-avatars/pulse-buddy/demo-happy.mp4',

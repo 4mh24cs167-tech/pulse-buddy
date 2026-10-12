@@ -549,6 +549,7 @@ export const App: React.FC = () => {
       {/* In-Browser Ad-Style Floating Avatar Reminder Companion Overlay */}
       {activeTrigger && (
         <FloatingAvatarReminder
+          key={`${activeTrigger.reminder.id}-${activeTrigger.scheduledTime || Date.now()}`}
           reminder={activeTrigger.reminder}
           avatar={activeTrigger.avatar}
           speechText={activeTrigger.speechText}

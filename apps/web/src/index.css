@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply selection:bg-sky-500 selection:text-white;
+    @apply selection:bg-sky-500 selection:text-white overflow-x-hidden;
   }
 }
 

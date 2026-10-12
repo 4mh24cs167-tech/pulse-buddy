@@ -621,6 +621,11 @@ export const VideoChromaKeyAvatar: React.FC<{
     if (!animationClips) return videoSrc;
     if (animationClips[state]) return animationClips[state]!;
 
+    const isWalking = state === 'walk' || state === 'run' || state === 'enter';
+    if (isWalking && (animationClips.walk || animationClips.run || animationClips.enter)) {
+      return (animationClips.walk || animationClips.run || animationClips.enter)!;
+    }
+
     const isHappy = state === 'happy' || state === 'celebrate' || state === 'forward';
     if (isHappy && (animationClips.forward || animationClips.celebrate || animationClips.happy)) {
       return (animationClips.forward || animationClips.celebrate || animationClips.happy)!;
@@ -631,7 +636,6 @@ export const VideoChromaKeyAvatar: React.FC<{
       return (animationClips.backward || animationClips.sad || animationClips.concerned)!;
     }
 
-    if (state === 'enter' && animationClips.enter) return animationClips.enter;
     if (state === 'exit' && animationClips.exit) return animationClips.exit;
 
     return animationClips.idle || videoSrc;

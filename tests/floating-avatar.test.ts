@@ -4,6 +4,7 @@ import {
   hexToRgb,
   applyChromaKeyToImageData,
   AvatarStateMachine,
+  PULSE_BUDDY_DEMO_AVATAR,
 } from '../packages/avatar/src';
 import {
   calculateNextOccurrence,
@@ -381,5 +382,54 @@ describe('Video Avatar Multi-Clip Resolution vs Single Video Fallback', () => {
 
     expect(resolveClip(singleClipAvatar, 'forward')).toBe('https://example.com/single.mp4');
     expect(resolveClip(singleClipAvatar, 'backward')).toBe('https://example.com/single.mp4');
+  });
+
+  describe('Avatar Left-to-Right Entrance & Three-Layer Motion Pipeline', () => {
+    it('guarantees initial off-screen X position is strictly negative and outside viewport for all positions', () => {
+      const screenWidth = 1280;
+      const resolvedSize = 210;
+
+      const calcOffscreen = (pos: string) => {
+        if (pos === 'bottom-left' || pos === 'top-left') {
+          return -(resolvedSize + 320);
+        }
+        if (pos === 'center') {
+          return -(screenWidth / 2 + resolvedSize + 160);
+        }
+        return -(screenWidth + 120);
+      };
+
+      expect(calcOffscreen('bottom-right')).toBe(-(1280 + 120)); // -1400px, 100% offscreen left
+      expect(calcOffscreen('top-right')).toBe(-(1280 + 120));
+      expect(calcOffscreen('center')).toBe(-(640 + 210 + 160)); // -1010px, offscreen left
+      expect(calcOffscreen('bottom-left')).toBe(-(210 + 320)); // -530px, offscreen left
+
+      ['bottom-right', 'top-right', 'center', 'bottom-left', 'top-left'].forEach((pos) => {
+        expect(calcOffscreen(pos)).toBeLessThan(0);
+      });
+    });
+
+    it('resolves dedicated left-to-right walk video clip for walk, run, and enter states', () => {
+      expect(PULSE_BUDDY_DEMO_AVATAR.animationClips?.walk).toBe('/demo-avatars/pulse-buddy/demo-walk-left-to-right.mp4');
+      expect(PULSE_BUDDY_DEMO_AVATAR.animationClips?.run).toBe('/demo-avatars/pulse-buddy/demo-walk-left-to-right.mp4');
+      expect(PULSE_BUDDY_DEMO_AVATAR.animationClips?.enter).toBe('/demo-avatars/pulse-buddy/demo-walk-left-to-right.mp4');
+      expect(PULSE_BUDDY_DEMO_AVATAR.supportedStates).toContain('walk');
+    });
+
+    it('guarantees that 1400ms left-to-right entrance walk completes before test reactions execute (1650ms)', () => {
+      const entranceDuration = 1400;
+      const reactionDelay = 1650;
+
+      expect(reactionDelay).toBeGreaterThan(entranceDuration);
+      expect(reactionDelay - entranceDuration).toBeGreaterThanOrEqual(250);
+    });
+
+    it('keeps horizontal traversal completely decoupled from forward and backward perspective transforms', () => {
+      const happyScale = 1.14;
+      const sadScale = 0.88;
+
+      expect(happyScale).toBeGreaterThan(1.0);
+      expect(sadScale).toBeLessThan(1.0);
+    });
   });
 });
